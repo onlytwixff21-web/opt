@@ -1,38 +1,26 @@
--- ═══════════════════════════════════════════════════════════
---  GOAT OPTIMIZER  |  v3.3  |  Fast Entry + Zero Lag
---  منع Textures/Animations فوراً + Chunks + Auto-Reload
--- ═══════════════════════════════════════════════════════════
-
--- ⚡ طباعة فورية قبل أي شيء آخر
-print("════════════════════════════════════════════════════════════")
-print("[GOAT OPTIMIZER] Starting... please wait")
-print("════════════════════════════════════════════════════════════")
+print("[GOAT OPTIMIZER] Starting...")
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
 
--- ═══════════════════════════════════════════════════════════
---  [0] منع الأنميشن والصور فوراً (مع انتظار LocalPlayer)
--- ═══════════════════════════════════════════════════════════
 task.spawn(function()
     local Players = game:GetService("Players")
     local Workspace = game:GetService("Workspace")
 
-    local player = Players.LocalPlayer
-    if not player then
-        repeat
-            task.wait(0.1)
-            player = Players.LocalPlayer
-        until player
-    end
+    local player
+    repeat
+        task.wait(0.1)
+        player = Players.LocalPlayer
+    until player
 
-    print("[GOAT OPTIMIZER] ✓ LocalPlayer detected: " .. player.Name)
-    print("[GOAT OPTIMIZER] Fast block: Textures + Animations")
+    print("[GOAT OPTIMIZER] LocalPlayer: " .. player.Name)
 
-    local char = player.Character
-    if not char then
-        char = player.CharacterAdded:Wait()
-    end
-    local hum = char:WaitForChild("Humanoid", 5)
+    local char
+    repeat
+        task.wait(0.1)
+        char = player.Character
+    until char
+
+    local hum = char:WaitForChild("Humanoid", 10)
 
     if hum then
         local animator = hum:FindFirstChildOfClass("Animator")
@@ -74,37 +62,25 @@ task.spawn(function()
     end
 end)
 
--- ═══════════════════════════════════════════════════════════
---  انتظر تحميل اللعبة
--- ═══════════════════════════════════════════════════════════
-if not game:IsLoaded() then
-    print("[GOAT OPTIMIZER] Waiting for game to load...")
-    game.Loaded:Wait()
-    print("[GOAT OPTIMIZER] ✓ Game loaded")
-end
+if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players      = game:GetService("Players")
 local Lighting     = game:GetService("Lighting")
 local Workspace    = game:GetService("Workspace")
 local RunService   = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local player       = Players.LocalPlayer
 
-if not player then
-    repeat task.wait(0.1); player = Players.LocalPlayer until player
-end
+local player
+repeat
+    task.wait(0.1)
+    player = Players.LocalPlayer
+until player
 
-if _G.__GOAT_V33_RUNNING then
-    print("[GOAT OPTIMIZER] ⚠ Already running, skipping")
-    return
-end
-_G.__GOAT_V33_RUNNING = true
+if _G.__GOAT_V34_RUNNING then return end
+_G.__GOAT_V34_RUNNING = true
 
-print("[GOAT OPTIMIZER] Starting v3.3")
+print("[GOAT OPTIMIZER] v3.4")
 
--- ═══════════════════════════════════════════════════════════
---  [1] انتظر الأرض
--- ═══════════════════════════════════════════════════════════
 local function waitGround(maxT)
     maxT = maxT or 15
     local t0 = os.clock()
@@ -117,16 +93,17 @@ local function waitGround(maxT)
     return false
 end
 
-local character = player.Character or player.CharacterAdded:Wait()
+local character
+repeat
+    task.wait(0.1)
+    character = player.Character
+until character
+
 character:WaitForChild("Humanoid", 10)
 waitGround(15)
-print("[GOAT OPTIMIZER] ✓ Ground ready")
 
 local playerGui = player:WaitForChild("PlayerGui", 15)
 
--- ═══════════════════════════════════════════════════════════
---  [2] إشعار
--- ═══════════════════════════════════════════════════════════
 local function showNotification()
     if not playerGui or not playerGui.Parent then return end
     local old = playerGui:FindFirstChild("GoatOptimizerNotif")
@@ -178,7 +155,7 @@ local function showNotification()
     Sub.Size = UDim2.new(1, -30, 0, 16)
     Sub.Position = UDim2.new(0, 15, 0, 34)
     Sub.BackgroundTransparency = 1
-    Sub.Text = "ACTIVATED • FAST ENTRY"
+    Sub.Text = "ACTIVATED"
     Sub.TextColor3 = Color3.fromRGB(180, 180, 180)
     Sub.Font = Enum.Font.GothamMedium
     Sub.TextSize = 11
@@ -202,9 +179,6 @@ local function showNotification()
     end)
 end
 
--- ═══════════════════════════════════════════════════════════
---  [3] Chunks
--- ═══════════════════════════════════════════════════════════
 local function processTinyChunks(list, processFn)
     if #list == 0 then return end
     local i = 1
@@ -218,9 +192,6 @@ local function processTinyChunks(list, processFn)
     end)
 end
 
--- ═══════════════════════════════════════════════════════════
---  [4] تحسين الإضاءة
--- ═══════════════════════════════════════════════════════════
 local function optimizeLighting()
     pcall(function()
         Lighting.GlobalShadows            = false
@@ -239,12 +210,8 @@ local function optimizeLighting()
             pcall(function() obj:Destroy() end)
         end
     end
-    print("[GOAT OPTIMIZER] ✓ Lighting optimized")
 end
 
--- ═══════════════════════════════════════════════════════════
---  [5] إزالة الأنميشن
--- ═══════════════════════════════════════════════════════════
 local function killAnimations(char)
     char = char or player.Character
     if not char then return end
@@ -260,18 +227,13 @@ local function killAnimations(char)
     end
     local animate = char:FindFirstChild("Animate")
     if animate then pcall(function() animate.Disabled = true end) end
-    print("[GOAT OPTIMIZER] ✓ Animations killed")
 end
 
--- ═══════════════════════════════════════════════════════════
---  [6] تسطيح الأجزاء القريبة
--- ═══════════════════════════════════════════════════════════
 local function flattenNearby()
     local char = player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
     local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 200)
-    print("[GOAT OPTIMIZER] Nearby parts: " .. #parts)
     local function flatten(p)
         p.Material        = Enum.Material.Plastic
         p.CastShadow      = false
@@ -281,9 +243,6 @@ local function flattenNearby()
     task.spawn(function() processTinyChunks(parts, flatten) end)
 end
 
--- ═══════════════════════════════════════════════════════════
---  [7] تعطيل المؤثرات
--- ═══════════════════════════════════════════════════════════
 local function disableNearbyEffects()
     local char = player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -298,13 +257,9 @@ local function disableNearbyEffects()
             end
         end
     end
-    print("[GOAT OPTIMIZER] Nearby effects: " .. #effects)
     processTinyChunks(effects, function(e) e.Enabled = false end)
 end
 
--- ═══════════════════════════════════════════════════════════
---  [8] التشغيل الرئيسي
--- ═══════════════════════════════════════════════════════════
 local function runOptimizer()
     showNotification()
     task.spawn(function() pcall(optimizeLighting) end)
@@ -315,9 +270,6 @@ end
 
 runOptimizer()
 
--- ═══════════════════════════════════════════════════════════
---  [9] إعادة التطبيق عند Respawn
--- ═══════════════════════════════════════════════════════════
 player.CharacterAdded:Connect(function(newChar)
     task.wait(1.5)
     pcall(function() killAnimations(newChar) end)
@@ -332,33 +284,28 @@ player.CharacterAdded:Connect(function(newChar)
     end
 end)
 
--- ═══════════════════════════════════════════════════════════
---  [10] queue_on_teleport
--- ═══════════════════════════════════════════════════════════
 local function queueForNextServer()
     local payload = ('loadstring(game:HttpGet("%s"))()'):format(SCRIPT_URL)
-
     if type(queue_on_teleport) == "function" then
         local ok = pcall(function() queue_on_teleport(payload) end)
-        if ok then print("[GOAT OPTIMIZER] ✓ Queued via queue_on_teleport"); return true end
+        if ok then print("[GOAT] Queued"); return true end
     end
     if type(syn) == "table" and syn.queue_on_teleport then
         local ok = pcall(function() syn.queue_on_teleport(payload) end)
-        if ok then print("[GOAT OPTIMIZER] ✓ Queued via syn"); return true end
+        if ok then print("[GOAT] Queued"); return true end
     end
     if type(fluxus) == "table" and fluxus.queue_on_teleport then
         local ok = pcall(function() fluxus.queue_on_teleport(payload) end)
-        if ok then print("[GOAT OPTIMIZER] ✓ Queued via fluxus"); return true end
+        if ok then print("[GOAT] Queued"); return true end
     end
     if type(krnl) == "table" and krnl.queue_on_teleport then
         local ok = pcall(function() krnl.queue_on_teleport(payload) end)
-        if ok then print("[GOAT OPTIMIZER] ✓ Queued via krnl"); return true end
+        if ok then print("[GOAT] Queued"); return true end
     end
     if type(delta) == "table" and delta.queue_on_teleport then
         local ok = pcall(function() delta.queue_on_teleport(payload) end)
-        if ok then print("[GOAT OPTIMIZER] ✓ Queued via delta"); return true end
+        if ok then print("[GOAT] Queued"); return true end
     end
-    warn("[GOAT OPTIMIZER] ✗ queue_on_teleport غير مدعوم")
     return false
 end
 
@@ -376,6 +323,4 @@ pcall(function()
     end)
 end)
 
-print("════════════════════════════════════════════════════════════")
-print("[GOAT OPTIMIZER] ✓ Ready - Fast Entry, Zero Freeze")
-print("════════════════════════════════════════════════════════════")
+print("[GOAT OPTIMIZER] Ready")
