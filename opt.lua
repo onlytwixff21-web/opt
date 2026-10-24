@@ -3,7 +3,7 @@
 --  يعمل تلقائياً عند تغيير الخريطة (queue_on_teleport)
 -- ═══════════════════════════════════════════════════════════
 
--- ⚠️ ضع رابط GitHub Raw الخاص بك هنا (ستحصل عليه في الخطوة 4)
+-- ⚠️ رابط GitHub Raw الخاص بك
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
 
 -- ═══════════════════════════════════════════════════════════
@@ -252,49 +252,73 @@ print("[GOAT v2.0-ZL] Ready ✓ (Zero Lag, No Freeze)")
 
 -- ═══════════════════════════════════════════════════════════
 --  الحفظ الذاتي: إعادة التشغيل التلقائي بعد تغيير الخريطة
+--  ⚠️ يتم استدعاؤه فوراً (ليس داخل OnTeleport)
 -- ═══════════════════════════════════════════════════════════
 
-local function safeQueueOnTeleport(code)
-    -- syn
-    if type(syn) == "table" and syn.queue_on_teleport then
-        local ok = pcall(function() syn.queue_on_teleport(code) end)
-        if ok then return true end
-    end
-    -- fluxus
-    if type(fluxus) == "table" and fluxus.queue_on_teleport then
-        local ok = pcall(function() fluxus.queue_on_teleport(code) end)
-        if ok then return true end
-    end
-    -- krnl
-    if type(krnl) == "table" and krnl.queue_on_teleport then
-        local ok = pcall(function() krnl.queue_on_teleport(code) end)
-        if ok then return true end
-    end
-    -- delta
-    if type(delta) == "table" and delta.queue_on_teleport then
-        local ok = pcall(function() delta.queue_on_teleport(code) end)
-        if ok then return true end
-    end
-    -- الدالة العامة
+local function queueForNextServer()
+    local payload = ('loadstring(game:HttpGet("%s"))()'):format(SCRIPT_URL)
+
+    -- محاولة 1: الدالة العامة
     if type(queue_on_teleport) == "function" then
-        local ok = pcall(function() queue_on_teleport(code) end)
-        if ok then return true end
+        local ok = pcall(function() queue_on_teleport(payload) end)
+        if ok then
+            print("[GOAT] ✓ Queued via queue_on_teleport")
+            return true
+        end
     end
+
+    -- محاولة 2: syn
+    if type(syn) == "table" and syn.queue_on_teleport then
+        local ok = pcall(function() syn.queue_on_teleport(payload) end)
+        if ok then
+            print("[GOAT] ✓ Queued via syn")
+            return true
+        end
+    end
+
+    -- محاولة 3: fluxus
+    if type(fluxus) == "table" and fluxus.queue_on_teleport then
+        local ok = pcall(function() fluxus.queue_on_teleport(payload) end)
+        if ok then
+            print("[GOAT] ✓ Queued via fluxus")
+            return true
+        end
+    end
+
+    -- محاولة 4: krnl
+    if type(krnl) == "table" and krnl.queue_on_teleport then
+        local ok = pcall(function() krnl.queue_on_teleport(payload) end)
+        if ok then
+            print("[GOAT] ✓ Queued via krnl")
+            return true
+        end
+    end
+
+    -- محاولة 5: delta
+    if type(delta) == "table" and delta.queue_on_teleport then
+        local ok = pcall(function() delta.queue_on_teleport(payload) end)
+        if ok then
+            print("[GOAT] ✓ Queued via delta")
+            return true
+        end
+    end
+
+    warn("[GOAT] ✗ queue_on_teleport غير مدعوم في هذا الـ Executor")
     return false
 end
 
+-- ⚠️ استدعاء فوري (الأهم)
+task.spawn(function()
+    task.wait(1)
+    queueForNextServer()
+end)
+
+-- طبقة احتياطية: عند Teleport
 pcall(function()
     local LocalPlayer = game:GetService("Players").LocalPlayer
     LocalPlayer.OnTeleport:Connect(function(State)
         if State == Enum.TeleportState.Started then
-            -- نبني أمر إعادة التحميل من GitHub
-            local payload = ('loadstring(game:HttpGet("%s"))()'):format(SCRIPT_URL)
-            local ok = safeQueueOnTeleport(payload)
-            if ok then
-                print("[GOAT] Queued for next map ✓")
-            else
-                warn("[GOAT] queue_on_teleport غير مدعوم - استخدم autoexec")
-            end
+            queueForNextServer()
         end
     end)
 end)
