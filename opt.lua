@@ -4,7 +4,7 @@
 -- ═══════════════════════════════════════════════════════════
 
 -- ⚠️ ضع رابط GitHub Raw الخاص بك هنا (ستحصل عليه في الخطوة 4)
-local SCRIPT_URL = "https://raw.githubusercontent.com/USERNAME/REPO/main/GOAT.lua"
+local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
 
 -- ═══════════════════════════════════════════════════════════
 --  الجزء الأساسي: GOAT OPTIMIZER
