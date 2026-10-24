@@ -1,4 +1,4 @@
-print("[GOAT OPTIMIZER] Starting v4.2...")
+print("[GOAT OPTIMIZER] Starting v4.3...")
 
 local ENTRY_START = os.clock()
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
@@ -49,7 +49,6 @@ task.spawn(function()
                        or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
                     obj.Enabled = false
                 elseif obj:IsA("BasePart") then
-                    obj.Material = Enum.Material.Plastic
                     obj.CastShadow = false
                     obj.Reflectance = 0
                 end
@@ -60,10 +59,10 @@ end)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-if _G.__GOAT_V42_RUNNING then return end
-_G.__GOAT_V42_RUNNING = true
+if _G.__GOAT_V43_RUNNING then return end
+_G.__GOAT_V43_RUNNING = true
 
-print("[GOAT v4.2] Initializing")
+print("[GOAT v4.3] Initializing")
 
 local character
 repeat
@@ -89,7 +88,7 @@ end
 waitGround(20)
 
 local ENTRY_TIME = os.clock() - ENTRY_START
-print(string.format("[GOAT v4.2] Entry time: %.2fs", ENTRY_TIME))
+print(string.format("[GOAT v4.3] Entry time: %.2fs", ENTRY_TIME))
 
 local function getSpawnPos()
     local char = player.Character
@@ -134,7 +133,7 @@ local function getMapBounds(spawnPos)
         end
     end
 
-    print(string.format("[GOAT v4.2] Parts: %d valid, %d rejected", count, rejected))
+    print(string.format("[GOAT v4.3] Parts: %d valid, %d rejected", count, rejected))
 
     if count < 10 then return nil end
     if minX == math.huge then return nil end
@@ -154,7 +153,7 @@ local function buildChunks(bounds, spawnPos)
     local zCount = math.ceil((bounds.maxZ - bounds.minZ) / CHUNK_SIZE)
     local total = xCount * yCount * zCount
 
-    print(string.format("[GOAT v4.2] Map grid: %dx%dx%d = %d chunks",
+    print(string.format("[GOAT v4.3] Map grid: %dx%dx%d = %d chunks",
         xCount, yCount, zCount, total))
 
     if total > MAX_CHUNKS then
@@ -198,7 +197,6 @@ end
 
 local function optimizePart(p)
     pcall(function()
-        p.Material        = Enum.Material.Plastic
         p.CastShadow      = false
         p.Reflectance     = 0
         p.MaterialVariant = ""
@@ -230,7 +228,7 @@ local function fallbackNearby()
             table.insert(filtered, p)
         end
     end
-    print("[GOAT v4.2] Fallback: optimizing " .. #filtered .. " nearby parts")
+    print("[GOAT v4.3] Fallback: optimizing " .. #filtered .. " nearby parts")
     local i = 1
     local conn
     conn = RunService.Heartbeat:Connect(function()
@@ -244,31 +242,31 @@ end
 
 task.spawn(function()
     local spawnPos = getSpawnPos()
-    print(string.format("[GOAT v4.2] Spawn: %.0f, %.0f, %.0f", spawnPos.X, spawnPos.Y, spawnPos.Z))
+    print(string.format("[GOAT v4.3] Spawn: %.0f, %.0f, %.0f", spawnPos.X, spawnPos.Y, spawnPos.Z))
 
     local bounds = getMapBounds(spawnPos)
     if not bounds then
-        print("[GOAT v4.2] Could not read map bounds, using fallback")
+        print("[GOAT v4.3] Could not read map bounds, using fallback")
         fallbackNearby()
         return
     end
 
-    print(string.format("[GOAT v4.2] Map bounds: X[%.0f..%.0f] Y[%.0f..%.0f] Z[%.0f..%.0f]",
+    print(string.format("[GOAT v4.3] Map bounds: X[%.0f..%.0f] Y[%.0f..%.0f] Z[%.0f..%.0f]",
         bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ))
 
     local chunks, total = buildChunks(bounds, spawnPos)
 
     if not chunks then
-        print(string.format("[GOAT v4.2] Too many chunks (%d > %d), using fallback",
+        print(string.format("[GOAT v4.3] Too many chunks (%d > %d), using fallback",
             total, MAX_CHUNKS))
         fallbackNearby()
         return
     end
 
-    print(string.format("[GOAT v4.2] Using chunk system (%d chunks)", total))
+    print(string.format("[GOAT v4.3] Using chunk system (%d chunks)", total))
 
     for i = 1, math.min(FIRST_CHUNKS, #chunks) do
-        print(string.format("[GOAT v4.2] Loading chunk %d/%d (dist: %.0f)",
+        print(string.format("[GOAT v4.3] Loading chunk %d/%d (dist: %.0f)",
             i, total, chunks[i].dist))
         processChunk(chunks[i])
     end
@@ -277,11 +275,11 @@ task.spawn(function()
         for i = FIRST_CHUNKS + 1, #chunks do
             task.wait(CHUNK_INTERVAL)
             local c = chunks[i]
-            print(string.format("[GOAT v4.2] Loading chunk %d/%d (dist: %.0f)",
+            print(string.format("[GOAT v4.3] Loading chunk %d/%d (dist: %.0f)",
                 i, total, c.dist))
             processChunk(c)
         end
-        print(string.format("[GOAT v4.2] All %d chunks optimized", total))
+        print(string.format("[GOAT v4.3] All %d chunks optimized", total))
     end)
 end)
 
@@ -455,4 +453,4 @@ pcall(function()
     end)
 end)
 
-print("[GOAT v4.2] Ready")
+print("[GOAT v4.3] Ready")
