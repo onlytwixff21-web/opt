@@ -1,10 +1,11 @@
-print("[GOAT OPTIMIZER] Starting v4.0...")
+print("[GOAT OPTIMIZER] Starting v4.1...")
 
 local ENTRY_START = os.clock()
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
 local CHUNK_SIZE = 150
 local FIRST_CHUNKS = 4
 local CHUNK_INTERVAL = 0.3
+local MAX_CHUNKS = 500
 
 local Players      = game:GetService("Players")
 local Workspace    = game:GetService("Workspace")
@@ -57,10 +58,10 @@ end)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-if _G.__GOAT_V40_RUNNING then return end
-_G.__GOAT_V40_RUNNING = true
+if _G.__GOAT_V41_RUNNING then return end
+_G.__GOAT_V41_RUNNING = true
 
-print("[GOAT v4.0] Initializing")
+print("[GOAT v4.1] Initializing")
 
 local character
 repeat
@@ -86,7 +87,7 @@ end
 waitGround(20)
 
 local ENTRY_TIME = os.clock() - ENTRY_START
-print(string.format("[GOAT v4.0] Entry time: %.2fs", ENTRY_TIME))
+print(string.format("[GOAT v4.1] Entry time: %.2fs", ENTRY_TIME))
 
 local function getMapBounds()
     local minX, maxX = math.huge, -math.huge
@@ -116,9 +117,14 @@ local function buildChunks(bounds, spawnPos)
     local xCount = math.ceil((bounds.maxX - bounds.minX) / CHUNK_SIZE)
     local yCount = math.ceil((bounds.maxY - bounds.minY) / CHUNK_SIZE)
     local zCount = math.ceil((bounds.maxZ - bounds.minZ) / CHUNK_SIZE)
+    local total = xCount * yCount * zCount
 
-    print(string.format("[GOAT v4.0] Map grid: %dx%dx%d = %d chunks",
-        xCount, yCount, zCount, xCount * yCount * zCount))
+    print(string.format("[GOAT v4.1] Map grid: %dx%dx%d = %d chunks",
+        xCount, yCount, zCount, total))
+
+    if total > MAX_CHUNKS then
+        return nil, total
+    end
 
     for ix = 0, xCount - 1 do
         for iy = 0, yCount - 1 do
@@ -133,19 +139,16 @@ local function buildChunks(bounds, spawnPos)
                     index = #chunks + 1,
                     center = center,
                     dist = dist,
-                    ix = ix, iy = iy, iz = iz,
                 })
             end
         end
     end
 
     table.sort(chunks, function(a, b) return a.dist < b.dist end)
-    return chunks, xCount * yCount * zCount
+    return chunks, total
 end
 
 local function getPartsInChunk(chunk)
-    local minC = chunk.center - Vector3.new(CHUNK_SIZE/2, CHUNK_SIZE/2, CHUNK_SIZE/2)
-    local maxC = chunk.center + Vector3.new(CHUNK_SIZE/2, CHUNK_SIZE/2, CHUNK_SIZE/2)
     local parts = Workspace:GetPartBoundsInBox(
         CFrame.new(chunk.center),
         Vector3.new(CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE)
@@ -162,13 +165,30 @@ local function optimizePart(p)
     end)
 end
 
-local function processChunk(chunk, totalChunks)
+local function processChunk(chunk)
     local parts = getPartsInChunk(chunk)
     if #parts == 0 then return end
     local i = 1
     local conn
     conn = RunService.Heartbeat:Connect(function()
         for _ = 1, 5 do
+            if i > #parts then conn:Disconnect(); return end
+            pcall(optimizePart, parts[i])
+            i = i + 1
+        end
+    end)
+end
+
+local function fallbackNearby()
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 200)
+    print("[GOAT v4.1] Fallback: optimizing " .. #parts .. " nearby parts")
+    local i = 1
+    local conn
+    conn = RunService.Heartbeat:Connect(function()
+        for _ = 1, 3 do
             if i > #parts then conn:Disconnect(); return end
             pcall(optimizePart, parts[i])
             i = i + 1
@@ -184,31 +204,40 @@ task.spawn(function()
 
     local bounds = getMapBounds()
     if not bounds then
-        print("[GOAT v4.0] Could not read map bounds")
+        print("[GOAT v4.1] Could not read map bounds, using fallback")
+        fallbackNearby()
         return
     end
 
-    print(string.format("[GOAT v4.0] Map bounds: X[%.0f..%.0f] Y[%.0f..%.0f] Z[%.0f..%.0f]",
+    print(string.format("[GOAT v4.1] Map bounds: X[%.0f..%.0f] Y[%.0f..%.0f] Z[%.0f..%.0f]",
         bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ))
 
     local chunks, total = buildChunks(bounds, spawnPos)
-    print(string.format("[GOAT v4.0] Total chunks: %d", total))
+
+    if not chunks then
+        print(string.format("[GOAT v4.1] Too many chunks (%d > %d), using fallback",
+            total, MAX_CHUNKS))
+        fallbackNearby()
+        return
+    end
+
+    print(string.format("[GOAT v4.1] Using chunk system (%d chunks)", total))
 
     for i = 1, math.min(FIRST_CHUNKS, #chunks) do
-        print(string.format("[GOAT v4.0] Loading chunk %d/%d (dist: %.0f)",
+        print(string.format("[GOAT v4.1] Loading chunk %d/%d (dist: %.0f)",
             i, total, chunks[i].dist))
-        processChunk(chunks[i], total)
+        processChunk(chunks[i])
     end
 
     task.spawn(function()
         for i = FIRST_CHUNKS + 1, #chunks do
             task.wait(CHUNK_INTERVAL)
             local c = chunks[i]
-            print(string.format("[GOAT v4.0] Loading chunk %d/%d (dist: %.0f)",
+            print(string.format("[GOAT v4.1] Loading chunk %d/%d (dist: %.0f)",
                 i, total, c.dist))
-            processChunk(c, total)
+            processChunk(c)
         end
-        print(string.format("[GOAT v4.0] All %d chunks optimized", total))
+        print(string.format("[GOAT v4.1] All %d chunks optimized", total))
     end)
 end)
 
@@ -382,4 +411,4 @@ pcall(function()
     end)
 end)
 
-print("[GOAT v4.0] Ready")
+print("[GOAT v4.1] Ready")
