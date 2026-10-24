@@ -1,19 +1,24 @@
-print("[GOAT OPTIMIZER] Starting...")
+print("[GOAT OPTIMIZER] Starting v4.0...")
 
+local ENTRY_START = os.clock()
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
+local CHUNK_SIZE = 150
+local FIRST_CHUNKS = 4
+local CHUNK_INTERVAL = 0.3
+
+local Players      = game:GetService("Players")
+local Workspace    = game:GetService("Workspace")
+local Lighting     = game:GetService("Lighting")
+local RunService   = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local player
+repeat
+    task.wait(0.1)
+    player = Players.LocalPlayer
+until player
 
 task.spawn(function()
-    local Players = game:GetService("Players")
-    local Workspace = game:GetService("Workspace")
-
-    local player
-    repeat
-        task.wait(0.1)
-        player = Players.LocalPlayer
-    until player
-
-    print("[GOAT OPTIMIZER] LocalPlayer: " .. player.Name)
-
     local char
     repeat
         task.wait(0.1)
@@ -21,7 +26,6 @@ task.spawn(function()
     until char
 
     local hum = char:WaitForChild("Humanoid", 10)
-
     if hum then
         local animator = hum:FindFirstChildOfClass("Animator")
         if animator then
@@ -49,40 +53,26 @@ task.spawn(function()
             end)
         end)
     end)
-
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        pcall(function()
-            if obj:IsA("Decal") or obj:IsA("Texture") then
-                obj.Texture = ""
-            elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
-                   or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
-                obj.Enabled = false
-            end
-        end)
-    end
 end)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-local Players      = game:GetService("Players")
-local Lighting     = game:GetService("Lighting")
-local Workspace    = game:GetService("Workspace")
-local RunService   = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
+if _G.__GOAT_V40_RUNNING then return end
+_G.__GOAT_V40_RUNNING = true
 
-local player
+print("[GOAT v4.0] Initializing")
+
+local character
 repeat
     task.wait(0.1)
-    player = Players.LocalPlayer
-until player
+    character = player.Character
+until character
+character:WaitForChild("Humanoid", 10)
 
-if _G.__GOAT_V34_RUNNING then return end
-_G.__GOAT_V34_RUNNING = true
-
-print("[GOAT OPTIMIZER] v3.4")
+local playerGui = player:WaitForChild("PlayerGui", 15)
 
 local function waitGround(maxT)
-    maxT = maxT or 15
+    maxT = maxT or 20
     local t0 = os.clock()
     while os.clock() - t0 < maxT do
         local c = player.Character
@@ -93,16 +83,134 @@ local function waitGround(maxT)
     return false
 end
 
-local character
-repeat
-    task.wait(0.1)
-    character = player.Character
-until character
+waitGround(20)
 
-character:WaitForChild("Humanoid", 10)
-waitGround(15)
+local ENTRY_TIME = os.clock() - ENTRY_START
+print(string.format("[GOAT v4.0] Entry time: %.2fs", ENTRY_TIME))
 
-local playerGui = player:WaitForChild("PlayerGui", 15)
+local function getMapBounds()
+    local minX, maxX = math.huge, -math.huge
+    local minY, maxY = math.huge, -math.huge
+    local minZ, maxZ = math.huge, -math.huge
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local p = obj.Position
+            if p.X < minX then minX = p.X end
+            if p.X > maxX then maxX = p.X end
+            if p.Y < minY then minY = p.Y end
+            if p.Y > maxY then maxY = p.Y end
+            if p.Z < minZ then minZ = p.Z end
+            if p.Z > maxZ then maxZ = p.Z end
+        end
+    end
+    if minX == math.huge then return nil end
+    return {
+        minX = minX, maxX = maxX,
+        minY = minY, maxY = maxY,
+        minZ = minZ, maxZ = maxZ,
+    }
+end
+
+local function buildChunks(bounds, spawnPos)
+    local chunks = {}
+    local xCount = math.ceil((bounds.maxX - bounds.minX) / CHUNK_SIZE)
+    local yCount = math.ceil((bounds.maxY - bounds.minY) / CHUNK_SIZE)
+    local zCount = math.ceil((bounds.maxZ - bounds.minZ) / CHUNK_SIZE)
+
+    print(string.format("[GOAT v4.0] Map grid: %dx%dx%d = %d chunks",
+        xCount, yCount, zCount, xCount * yCount * zCount))
+
+    for ix = 0, xCount - 1 do
+        for iy = 0, yCount - 1 do
+            for iz = 0, zCount - 1 do
+                local center = Vector3.new(
+                    bounds.minX + (ix + 0.5) * CHUNK_SIZE,
+                    bounds.minY + (iy + 0.5) * CHUNK_SIZE,
+                    bounds.minZ + (iz + 0.5) * CHUNK_SIZE
+                )
+                local dist = (center - spawnPos).Magnitude
+                table.insert(chunks, {
+                    index = #chunks + 1,
+                    center = center,
+                    dist = dist,
+                    ix = ix, iy = iy, iz = iz,
+                })
+            end
+        end
+    end
+
+    table.sort(chunks, function(a, b) return a.dist < b.dist end)
+    return chunks, xCount * yCount * zCount
+end
+
+local function getPartsInChunk(chunk)
+    local minC = chunk.center - Vector3.new(CHUNK_SIZE/2, CHUNK_SIZE/2, CHUNK_SIZE/2)
+    local maxC = chunk.center + Vector3.new(CHUNK_SIZE/2, CHUNK_SIZE/2, CHUNK_SIZE/2)
+    local parts = Workspace:GetPartBoundsInBox(
+        CFrame.new(chunk.center),
+        Vector3.new(CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE)
+    )
+    return parts
+end
+
+local function optimizePart(p)
+    pcall(function()
+        p.Material        = Enum.Material.Plastic
+        p.CastShadow      = false
+        p.Reflectance     = 0
+        p.MaterialVariant = ""
+    end)
+end
+
+local function processChunk(chunk, totalChunks)
+    local parts = getPartsInChunk(chunk)
+    if #parts == 0 then return end
+    local i = 1
+    local conn
+    conn = RunService.Heartbeat:Connect(function()
+        for _ = 1, 5 do
+            if i > #parts then conn:Disconnect(); return end
+            pcall(optimizePart, parts[i])
+            i = i + 1
+        end
+    end)
+end
+
+task.spawn(function()
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    local spawnPos = hrp.Position
+
+    local bounds = getMapBounds()
+    if not bounds then
+        print("[GOAT v4.0] Could not read map bounds")
+        return
+    end
+
+    print(string.format("[GOAT v4.0] Map bounds: X[%.0f..%.0f] Y[%.0f..%.0f] Z[%.0f..%.0f]",
+        bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ))
+
+    local chunks, total = buildChunks(bounds, spawnPos)
+    print(string.format("[GOAT v4.0] Total chunks: %d", total))
+
+    for i = 1, math.min(FIRST_CHUNKS, #chunks) do
+        print(string.format("[GOAT v4.0] Loading chunk %d/%d (dist: %.0f)",
+            i, total, chunks[i].dist))
+        processChunk(chunks[i], total)
+    end
+
+    task.spawn(function()
+        for i = FIRST_CHUNKS + 1, #chunks do
+            task.wait(CHUNK_INTERVAL)
+            local c = chunks[i]
+            print(string.format("[GOAT v4.0] Loading chunk %d/%d (dist: %.0f)",
+                i, total, c.dist))
+            processChunk(c, total)
+        end
+        print(string.format("[GOAT v4.0] All %d chunks optimized", total))
+    end)
+end)
 
 local function showNotification()
     if not playerGui or not playerGui.Parent then return end
@@ -155,7 +263,7 @@ local function showNotification()
     Sub.Size = UDim2.new(1, -30, 0, 16)
     Sub.Position = UDim2.new(0, 15, 0, 34)
     Sub.BackgroundTransparency = 1
-    Sub.Text = "ACTIVATED"
+    Sub.Text = string.format("ACTIVATED • Entry: %.1fs", ENTRY_TIME)
     Sub.TextColor3 = Color3.fromRGB(180, 180, 180)
     Sub.Font = Enum.Font.GothamMedium
     Sub.TextSize = 11
@@ -166,7 +274,7 @@ local function showNotification()
         Position = UDim2.new(0.5, -160, 0, 20)
     }):Play()
 
-    task.delay(2, function()
+    task.delay(3, function()
         if Frame and Frame.Parent then
             pcall(function()
                 TweenService:Create(Frame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
@@ -179,18 +287,7 @@ local function showNotification()
     end)
 end
 
-local function processTinyChunks(list, processFn)
-    if #list == 0 then return end
-    local i = 1
-    local conn
-    conn = RunService.Heartbeat:Connect(function()
-        for _ = 1, 2 do
-            if i > #list then conn:Disconnect(); return end
-            pcall(processFn, list[i])
-            i = i + 1
-        end
-    end)
-end
+showNotification()
 
 local function optimizeLighting()
     pcall(function()
@@ -229,46 +326,8 @@ local function killAnimations(char)
     if animate then pcall(function() animate.Disabled = true end) end
 end
 
-local function flattenNearby()
-    local char = player.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 200)
-    local function flatten(p)
-        p.Material        = Enum.Material.Plastic
-        p.CastShadow      = false
-        p.Reflectance     = 0
-        p.MaterialVariant = ""
-    end
-    task.spawn(function() processTinyChunks(parts, flatten) end)
-end
-
-local function disableNearbyEffects()
-    local char = player.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    local effects = {}
-    local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 200)
-    for _, part in ipairs(parts) do
-        for _, child in ipairs(part:GetChildren()) do
-            if child:IsA("ParticleEmitter") or child:IsA("Trail") or child:IsA("Beam")
-               or child:IsA("Smoke") or child:IsA("Fire") or child:IsA("Sparkles") then
-                table.insert(effects, child)
-            end
-        end
-    end
-    processTinyChunks(effects, function(e) e.Enabled = false end)
-end
-
-local function runOptimizer()
-    showNotification()
-    task.spawn(function() pcall(optimizeLighting) end)
-    task.spawn(function() pcall(killAnimations) end)
-    task.delay(1.5, function() pcall(flattenNearby) end)
-    task.delay(2.5, function() pcall(disableNearbyEffects) end)
-end
-
-runOptimizer()
+task.spawn(function() pcall(optimizeLighting) end)
+task.spawn(function() pcall(killAnimations) end)
 
 player.CharacterAdded:Connect(function(newChar)
     task.wait(1.5)
@@ -323,4 +382,4 @@ pcall(function()
     end)
 end)
 
-print("[GOAT OPTIMIZER] Ready")
+print("[GOAT v4.0] Ready")
