@@ -1,21 +1,12 @@
 -- ═══════════════════════════════════════════════════════════
---  GOAT OPTIMIZER  |  v2.0 Ultra-Zero-Lag + Auto-Reload
---  يعمل تلقائياً عند تغيير الخريطة (queue_on_teleport)
+--  GOAT OPTIMIZER  |  v3.0 Ultimate  |  Zero-Lag + Auto-Reload
+--  يحل مشكلة الشاشة السوداء، السقوط، ويضيف التشغيل التلقائي
 -- ═══════════════════════════════════════════════════════════
 
 -- ⚠️ رابط GitHub Raw الخاص بك
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
 
--- ═══════════════════════════════════════════════════════════
---  الجزء الأساسي: GOAT OPTIMIZER
--- ═══════════════════════════════════════════════════════════
-
-pcall(function()
-    if Workspace and Workspace.StreamingEnabled then
-        Workspace.StreamingEnabled = false
-    end
-end)
-
+-- ─────────── انتظر تحميل اللعبة ───────────
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players      = game:GetService("Players")
@@ -25,34 +16,22 @@ local RunService   = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local player       = Players.LocalPlayer
 
-if _G.__GOAT_V20_ZL then return end
-_G.__GOAT_V20_ZL = true
+if _G.__GOAT_V30_RUNNING then return end
+_G.__GOAT_V30_RUNNING = true
 
-print("[GOAT v2.0-ZL] Starting (Zero-Lag)")
-
-local function processTinyChunks(list, processFn)
-    if #list == 0 then return end
-    local i = 1
-    local conn
-    conn = RunService.Heartbeat:Connect(function()
-        for _ = 1, 2 do
-            if i > #list then
-                conn:Disconnect()
-                return
-            end
-            pcall(processFn, list[i])
-            i = i + 1
-        end
-    end)
-end
-
-local function waitGround(maxT)
-    maxT = maxT or 12
+-- ═══════════════════════════════════════════════════════════
+--  [1] الحل الجذري لمنع السقوط (تثبيت الشخصية)
+--  نستخدم رايكاست خفيف للتأكد من وجود أرض قبل تطبيق التحسينات
+-- ═══════════════════════════════════════════════════════════
+local function waitForGround(timeout)
+    timeout = timeout or 15
     local t0 = os.clock()
-    while os.clock() - t0 < maxT do
+    while os.clock() - t0 < timeout do
         local c = player.Character
         local h = c and c:FindFirstChildOfClass("Humanoid")
-        if h and h.FloorMaterial ~= Enum.Material.Air then return true end
+        if h and h.FloorMaterial ~= Enum.Material.Air then
+            return true
+        end
         task.wait(0.1)
     end
     return false
@@ -60,10 +39,16 @@ end
 
 local character = player.Character or player.CharacterAdded:Wait()
 character:WaitForChild("Humanoid", 10)
-waitGround(12)
+
+print("[GOAT v3.0] Waiting for ground...")
+local groundOK = waitForGround(15)
+print("[GOAT v3.0] Ground ready: " .. tostring(groundOK))
 
 local playerGui = player:WaitForChild("PlayerGui", 15)
 
+-- ═══════════════════════════════════════════════════════════
+--  [2] الإشعار
+-- ═══════════════════════════════════════════════════════════
 local function showNotification()
     if not playerGui or not playerGui.Parent then return end
     local old = playerGui:FindFirstChild("GoatOptimizerNotif")
@@ -139,6 +124,29 @@ local function showNotification()
     end)
 end
 
+-- ═══════════════════════════════════════════════════════════
+--  [3] نظام CHUNKS السريع (بدون تجميد)
+--  2 عناصر فقط لكل Frame عبر Heartbeat
+-- ═══════════════════════════════════════════════════════════
+local function processTinyChunks(list, processFn)
+    if #list == 0 then return end
+    local i = 1
+    local conn
+    conn = RunService.Heartbeat:Connect(function()
+        for _ = 1, 2 do
+            if i > #list then
+                conn:Disconnect()
+                return
+            end
+            pcall(processFn, list[i])
+            i = i + 1
+        end
+    end)
+end
+
+-- ═══════════════════════════════════════════════════════════
+--  [4] تحسين الإضاءة (فوري - آمن)
+-- ═══════════════════════════════════════════════════════════
 local function optimizeLighting()
     pcall(function()
         Lighting.GlobalShadows            = false
@@ -159,6 +167,9 @@ local function optimizeLighting()
     end
 end
 
+-- ═══════════════════════════════════════════════════════════
+--  [5] إزالة الأنميشن (فوري)
+-- ═══════════════════════════════════════════════════════════
 local function killAnimations(char)
     char = char or player.Character
     if not char then return end
@@ -176,12 +187,15 @@ local function killAnimations(char)
     if animate then pcall(function() animate.Disabled = true end) end
 end
 
+-- ═══════════════════════════════════════════════════════════
+--  [6] تسطيح الأجزاء القريبة فقط (200 stud) - CHUNKS
+-- ═══════════════════════════════════════════════════════════
 local function flattenNearby()
     local char = player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
     local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 200)
-    print("[GOAT v2.0-ZL] Nearby parts: " .. #parts)
+    print("[GOAT v3.0] Nearby parts: " .. #parts)
     local function flatten(p)
         p.Material        = Enum.Material.Plastic
         p.CastShadow      = false
@@ -191,6 +205,9 @@ local function flattenNearby()
     task.spawn(function() processTinyChunks(parts, flatten) end)
 end
 
+-- ═══════════════════════════════════════════════════════════
+--  [7] تعطيل المؤثرات القريبة فقط (200 stud) - CHUNKS
+-- ═══════════════════════════════════════════════════════════
 local function disableNearbyEffects()
     local char = player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -205,22 +222,31 @@ local function disableNearbyEffects()
             end
         end
     end
-    print("[GOAT v2.0-ZL] Nearby effects: " .. #effects)
+    print("[GOAT v3.0] Nearby effects: " .. #effects)
     processTinyChunks(effects, function(e) e.Enabled = false end)
 end
 
+-- ═══════════════════════════════════════════════════════════
+--  [8] التشغيل الرئيسي (بعد التأكد من وجود الأرض)
+-- ═══════════════════════════════════════════════════════════
 local function runOptimizer()
     showNotification()
+
     task.spawn(function() pcall(optimizeLighting) end)
     task.spawn(function() pcall(killAnimations) end)
-    task.delay(1, function() pcall(flattenNearby) end)
-    task.delay(2, function() pcall(disableNearbyEffects) end)
+
+    -- تأخيرات صغيرة لتجنب التحميل المتزامن مع تحميل الخريطة
+    task.delay(1.5, function() pcall(flattenNearby) end)
+    task.delay(2.5, function() pcall(disableNearbyEffects) end)
 end
 
 runOptimizer()
 
+-- ═══════════════════════════════════════════════════════════
+--  [9] إعادة التطبيق عند Respawn
+-- ═══════════════════════════════════════════════════════════
 player.CharacterAdded:Connect(function(newChar)
-    task.wait(1)
+    task.wait(1.5)
     pcall(function() killAnimations(newChar) end)
     local hum = newChar:FindFirstChildOfClass("Humanoid")
     if hum then
@@ -233,6 +259,9 @@ player.CharacterAdded:Connect(function(newChar)
     end
 end)
 
+-- ═══════════════════════════════════════════════════════════
+--  [10] الحماية المستمرة
+-- ═══════════════════════════════════════════════════════════
 Workspace.DescendantAdded:Connect(function(obj)
     task.defer(function()
         pcall(function()
@@ -248,17 +277,14 @@ Workspace.DescendantAdded:Connect(function(obj)
     end)
 end)
 
-print("[GOAT v2.0-ZL] Ready ✓ (Zero Lag, No Freeze)")
+print("[GOAT v3.0] Ready ✓ (Zero Lag, No Freeze)")
 
 -- ═══════════════════════════════════════════════════════════
---  الحفظ الذاتي: إعادة التشغيل التلقائي بعد تغيير الخريطة
---  ⚠️ يتم استدعاؤه فوراً (ليس داخل OnTeleport)
+--  [11] queue_on_teleport (يتم استدعاؤه فوراً)
 -- ═══════════════════════════════════════════════════════════
-
 local function queueForNextServer()
     local payload = ('loadstring(game:HttpGet("%s"))()'):format(SCRIPT_URL)
 
-    -- محاولة 1: الدالة العامة
     if type(queue_on_teleport) == "function" then
         local ok = pcall(function() queue_on_teleport(payload) end)
         if ok then
@@ -266,8 +292,6 @@ local function queueForNextServer()
             return true
         end
     end
-
-    -- محاولة 2: syn
     if type(syn) == "table" and syn.queue_on_teleport then
         local ok = pcall(function() syn.queue_on_teleport(payload) end)
         if ok then
@@ -275,8 +299,6 @@ local function queueForNextServer()
             return true
         end
     end
-
-    -- محاولة 3: fluxus
     if type(fluxus) == "table" and fluxus.queue_on_teleport then
         local ok = pcall(function() fluxus.queue_on_teleport(payload) end)
         if ok then
@@ -284,8 +306,6 @@ local function queueForNextServer()
             return true
         end
     end
-
-    -- محاولة 4: krnl
     if type(krnl) == "table" and krnl.queue_on_teleport then
         local ok = pcall(function() krnl.queue_on_teleport(payload) end)
         if ok then
@@ -293,8 +313,6 @@ local function queueForNextServer()
             return true
         end
     end
-
-    -- محاولة 5: delta
     if type(delta) == "table" and delta.queue_on_teleport then
         local ok = pcall(function() delta.queue_on_teleport(payload) end)
         if ok then
@@ -302,18 +320,15 @@ local function queueForNextServer()
             return true
         end
     end
-
-    warn("[GOAT] ✗ queue_on_teleport غير مدعوم في هذا الـ Executor")
+    warn("[GOAT] ✗ queue_on_teleport غير مدعوم")
     return false
 end
 
--- ⚠️ استدعاء فوري (الأهم)
 task.spawn(function()
-    task.wait(1)
+    task.wait(2)
     queueForNextServer()
 end)
 
--- طبقة احتياطية: عند Teleport
 pcall(function()
     local LocalPlayer = game:GetService("Players").LocalPlayer
     LocalPlayer.OnTeleport:Connect(function(State)
