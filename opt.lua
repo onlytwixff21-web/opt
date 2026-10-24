@@ -1,22 +1,33 @@
 -- ═══════════════════════════════════════════════════════════
---  GOAT OPTIMIZER  |  v3.1  |  Fast Entry + Zero Lag
+--  GOAT OPTIMIZER  |  v3.2  |  Fast Entry + Zero Lag
 --  منع Textures/Animations فوراً + Chunks + Auto-Reload
 -- ═══════════════════════════════════════════════════════════
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
 
 -- ═══════════════════════════════════════════════════════════
---  [0] منع الأنميشن والصور فوراً (قبل أي شيء آخر)
+--  [0] منع الأنميشن والصور فوراً (مع انتظار LocalPlayer)
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
     local Players = game:GetService("Players")
     local Workspace = game:GetService("Workspace")
+
+    -- انتظر LocalPlayer (قد يكون nil في اللحظة الأولى)
     local player = Players.LocalPlayer
+    if not player then
+        repeat
+            task.wait(0.1)
+            player = Players.LocalPlayer
+        until player
+    end
 
     print("[GOAT OPTIMIZER] Fast block: Textures + Animations")
 
-    -- انتظر الشخصية (بدون انتظار game.Loaded)
-    local char = player.Character or player.CharacterAdded:Wait()
+    -- انتظر الشخصية
+    local char = player.Character
+    if not char then
+        char = player.CharacterAdded:Wait()
+    end
     local hum = char:WaitForChild("Humanoid", 5)
 
     -- إيقاف كل أنميشن
@@ -74,10 +85,15 @@ local RunService   = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local player       = Players.LocalPlayer
 
-if _G.__GOAT_V31_RUNNING then return end
-_G.__GOAT_V31_RUNNING = true
+-- انتظار إضافي للاعب (احتياط)
+if not player then
+    repeat task.wait(0.1); player = Players.LocalPlayer until player
+end
 
-print("[GOAT OPTIMIZER] Starting v3.1")
+if _G.__GOAT_V32_RUNNING then return end
+_G.__GOAT_V32_RUNNING = true
+
+print("[GOAT OPTIMIZER] Starting v3.2")
 
 -- ═══════════════════════════════════════════════════════════
 --  [1] انتظر الأرض (منع الشاشة السوداء والسقوط)
