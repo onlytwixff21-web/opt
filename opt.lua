@@ -3,6 +3,7 @@ local Lighting     = game:GetService("Lighting")
 local Workspace    = game:GetService("Workspace")
 local RunService   = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
 
@@ -14,7 +15,6 @@ repeat task.wait(0.1); player = Players.LocalPlayer until player
 pcall(function()
     if Workspace.StreamingEnabled then
         Workspace.StreamingEnabled = false
-        print("[GOAT OPTIMIZER] Streaming disabled (Void prevention)")
     end
 end)
 
@@ -68,20 +68,26 @@ task.spawn(function()
     
     if hrp and hrp.Parent then
         hrp.Anchored = false
-        print("[GOAT OPTIMIZER] You can play now!")
     end
 
+    -- إزالة ملصق اللعبة (Steal a Brainrot)
+    pcall(function()
+        ReplicatedFirst:RemoveDefaultLoadingScreen()
+    end)
+    
     local playerGui = player:FindFirstChild("PlayerGui")
     if playerGui then
         for _, gui in ipairs(playerGui:GetChildren()) do
             if gui:IsA("ScreenGui") or gui:IsA("Frame") then
                 local name = gui.Name:lower()
-                if name:find("load") or name:find("intro") or name:find("splash") or name:find("start") or name:find("title") then
+                if name:find("load") or name:find("intro") or name:find("splash") or name:find("start") or name:find("title") or name:find("brainrot") then
                     pcall(function() gui:Destroy() end)
                 end
             end
         end
     end
+    
+    print("[GOAT OPTIMIZER] You can play now!")
 end)
 
 task.spawn(function()
@@ -103,11 +109,10 @@ end)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-if _G.__OPTIMIZER_RUNNING then 
-    return 
-end
+if _G.__OPTIMIZER_RUNNING then return end
 _G.__OPTIMIZER_RUNNING = true
 
+-- تقسيم الأجزاء إلى 5 مجموعات وتحميلها شوية بشوية
 task.spawn(function()
     task.wait(2)
 
@@ -116,22 +121,27 @@ task.spawn(function()
     if not hrp then return end
 
     local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 150)
+    local totalParts = #parts
+    local batchSize = math.ceil(totalParts / 5)
     
-    for i, p in ipairs(parts) do
-        pcall(function()
-            if p:IsA("BasePart") then
-                p.Material        = Enum.Material.Plastic
-                p.CastShadow      = false
-                p.Reflectance     = 0
-                p.MaterialVariant = ""
-                p.Transparency    = 0
-                hiddenParts[p] = nil
-            end
-        end)
+    for batch = 1, 5 do
+        local startIdx = (batch - 1) * batchSize + 1
+        local endIdx = math.min(batch * batchSize, totalParts)
         
-        if i % 3 == 0 then
-            RunService.Heartbeat:Wait()
-            task.wait(0.1)
+        if startIdx <= totalParts then
+            for i = startIdx, endIdx do
+                pcall(function()
+                    if parts[i]:IsA("BasePart") then
+                        parts[i].Material        = Enum.Material.Plastic
+                        parts[i].CastShadow      = false
+                        parts[i].Reflectance     = 0
+                        parts[i].MaterialVariant = ""
+                        parts[i].Transparency    = 0
+                        hiddenParts[parts[i]] = nil
+                    end
+                end)
+            end
+            task.wait(0.5)
         end
     end
     print("[GOAT OPTIMIZER] All systems ready!")
