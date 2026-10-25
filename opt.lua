@@ -3,7 +3,6 @@ local Lighting     = game:GetService("Lighting")
 local Workspace    = game:GetService("Workspace")
 local RunService   = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local ReplicatedFirst = game:GetService("ReplicatedFirst")
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
 
@@ -47,6 +46,7 @@ Workspace.DescendantAdded:Connect(function(obj)
     end)
 end)
 
+-- إزالة الملصق فوراً وعدم الانتظار
 task.spawn(function()
     local char
     repeat task.wait(0.1); char = player.Character until char
@@ -59,30 +59,19 @@ task.spawn(function()
         player:RequestStreamAroundAsync(hrp.Position)
     end)
     
-    local t0 = os.clock()
-    while os.clock() - t0 < 10 do
-        local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0))
-        if ray then break end
-        task.wait(0.05)
-    end
+    -- انتظار قصير جداً (0.2 ثانية فقط)
+    task.wait(0.2)
     
     if hrp and hrp.Parent then
         hrp.Anchored = false
     end
 
-    -- إزالة ملصق اللعبة (Steal a Brainrot)
-    pcall(function()
-        ReplicatedFirst:RemoveDefaultLoadingScreen()
-    end)
-    
+    -- حذف الملصق فوراً (شاشة سوداء مؤقتة)
     local playerGui = player:FindFirstChild("PlayerGui")
     if playerGui then
         for _, gui in ipairs(playerGui:GetChildren()) do
-            if gui:IsA("ScreenGui") or gui:IsA("Frame") then
-                local name = gui.Name:lower()
-                if name:find("load") or name:find("intro") or name:find("splash") or name:find("start") or name:find("title") or name:find("brainrot") then
-                    pcall(function() gui:Destroy() end)
-                end
+            if gui:IsA("ScreenGui") then
+                pcall(function() gui:Destroy() end)
             end
         end
     end
@@ -112,9 +101,9 @@ if not game:IsLoaded() then game.Loaded:Wait() end
 if _G.__OPTIMIZER_RUNNING then return end
 _G.__OPTIMIZER_RUNNING = true
 
--- تقسيم الأجزاء إلى 5 مجموعات وتحميلها شوية بشوية
+-- تحميل البارتات بسرعة (5 مجموعات)
 task.spawn(function()
-    task.wait(2)
+    task.wait(1)
 
     local char = player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -141,7 +130,7 @@ task.spawn(function()
                     end
                 end)
             end
-            task.wait(0.5)
+            task.wait(0.2) -- استراحة قصيرة جداً
         end
     end
     print("[GOAT OPTIMIZER] All systems ready!")
