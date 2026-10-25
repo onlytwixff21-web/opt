@@ -96,7 +96,6 @@ task.spawn(function()
     local LOAD_TIME = os.clock() - START_TIME
     print(string.format("[GOAT OPTIMIZER] You can play now! (Load time: %.2fs)", LOAD_TIME))
 
-    -- 💡 إضافة نظام التحميل المسبق (Preloader) هنا
     task.spawn(function()
         local textures = {}
         for _, obj in ipairs(Workspace:GetDescendants()) do
