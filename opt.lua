@@ -37,22 +37,24 @@ local function clearScreens()
     end
 end
 
-Workspace.DescendantAdded:Connect(function(obj)
-    task.defer(function()
-        pcall(function()
-            if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
-               or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
-                obj.Enabled = false
-            elseif obj:IsA("Decal") or obj:IsA("Texture") then
-                obj.Texture = ""
-            elseif obj:IsA("BasePart") then
-                obj.Material        = Enum.Material.Plastic
-                obj.CastShadow      = false
-                obj.Reflectance     = 0
-                obj.MaterialVariant = ""
-            end
-        end)
+local function optimizePart(obj)
+    pcall(function()
+        if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
+           or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+            obj.Enabled = false
+        elseif obj:IsA("Decal") or obj:IsA("Texture") then
+            obj.Texture = ""
+        elseif obj:IsA("BasePart") then
+            obj.Material        = Enum.Material.Plastic
+            obj.CastShadow      = false
+            obj.Reflectance     = 0
+            obj.MaterialVariant = ""
+        end
     end)
+end
+
+Workspace.DescendantAdded:Connect(function(obj)
+    task.defer(function() optimizePart(obj) end)
 end)
 
 local function anchorUntilLoaded()
@@ -90,12 +92,17 @@ task.spawn(function()
         player:RequestStreamAroundAsync(hrp.Position)
     end)
     
-    -- 💡 الحيلة: إخفاء الأجزاء القريبة لثانية واحدة لمنع الدرب فريم
     local nearbyParts = Workspace:GetPartBoundsInRadius(hrp.Position, 300)
     local hiddenForBoost = {}
     for _, p in ipairs(nearbyParts) do
         if p:IsA("BasePart") and p.Name ~= "Baseplate" then
             pcall(function()
+                -- السر هنا: نحولها لبطاطا قبل إخفائها
+                p.Material        = Enum.Material.Plastic
+                p.CastShadow      = false
+                p.Reflectance     = 0
+                p.MaterialVariant = ""
+                
                 if p.Transparency < 1 then
                     hiddenForBoost[p] = p.Transparency
                     p.Transparency = 1
@@ -113,7 +120,6 @@ task.spawn(function()
     clearScreens()
     print("[GOAT OPTIMIZER] You can play now!")
 
-    -- إعادة إظهار الأجزاء بعد أن يستقر المعالج
     task.delay(0.5, function()
         for p, origTrans in pairs(hiddenForBoost) do
             pcall(function()
@@ -190,7 +196,6 @@ end
 
 task.spawn(function() pcall(optimizeLighting) end)
 
--- 💡 تم تحسين الإشعار ليكون أكثر أناقة وسلاسة
 local function showNotification()
     if not playerGui or not playerGui.Parent then return end
     local old = playerGui:FindFirstChild("GoatOptimizerNotif")
@@ -203,7 +208,6 @@ local function showNotification()
     ScreenGui.DisplayOrder = 999999
     ScreenGui.Parent = playerGui
 
-    -- إطار الإشعار بحجم أكبر وأكثر جاذبية
     local Frame = Instance.new("Frame")
     Frame.Size = UDim2.new(0, 340, 0, 64)
     Frame.Position = UDim2.new(0.5, -170, 0, -100)
@@ -212,10 +216,8 @@ local function showNotification()
     Frame.BorderSizePixel = 0
     Frame.Parent = ScreenGui
 
-    -- حواف دائرية ناعمة
     Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 14)
 
-    -- حدود بيضاء خفيفة
     local Stroke = Instance.new("UIStroke")
     Stroke.Color = Color3.fromRGB(255, 255, 255)
     Stroke.Thickness = 1.5
@@ -223,7 +225,6 @@ local function showNotification()
     Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     Stroke.Parent = Frame
 
-    -- شريط الإضاءة السفلي
     local Accent = Instance.new("Frame")
     Accent.Size = UDim2.new(1, -30, 0, 2)
     Accent.Position = UDim2.new(0.5, 0, 1, -7)
@@ -233,7 +234,6 @@ local function showNotification()
     Accent.Parent = Frame
     Instance.new("UICorner", Accent).CornerRadius = UDim.new(1, 0)
 
-    -- تدرج لوني خفيف في الخلفية
     local Gradient = Instance.new("UIGradient")
     Gradient.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 20)),
@@ -242,7 +242,6 @@ local function showNotification()
     Gradient.Rotation = 45
     Gradient.Parent = Frame
 
-    -- الأيقونة (علامة GOAT)
     local Icon = Instance.new("TextLabel")
     Icon.Size = UDim2.new(0, 40, 0, 40)
     Icon.Position = UDim2.new(0, 15, 0.5, -20)
@@ -251,7 +250,6 @@ local function showNotification()
     Icon.TextSize = 28
     Icon.Parent = Frame
 
-    -- العنوان الرئيسي
     local Title = Instance.new("TextLabel")
     Title.Size = UDim2.new(1, -75, 0, 22)
     Title.Position = UDim2.new(0, 65, 0, 12)
@@ -263,7 +261,6 @@ local function showNotification()
     Title.TextXAlignment = Enum.TextXAlignment.Left
     Title.Parent = Frame
 
-    -- النص الفرعي
     local Sub = Instance.new("TextLabel")
     Sub.Size = UDim2.new(1, -75, 0, 14)
     Sub.Position = UDim2.new(0, 65, 0, 34)
@@ -275,12 +272,10 @@ local function showNotification()
     Sub.TextXAlignment = Enum.TextXAlignment.Left
     Sub.Parent = Frame
 
-    -- حركة الدخول (من الأعلى)
     TweenService:Create(Frame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
         Position = UDim2.new(0.5, -170, 0, 20)
     }):Play()
 
-    -- حركة الخروج بعد ثانيتين
     task.delay(2.5, function()
         if Frame and Frame.Parent then
             pcall(function()
