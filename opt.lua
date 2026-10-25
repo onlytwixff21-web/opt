@@ -1,4 +1,4 @@
-print("[GOAT OPTIMIZER] Starting v5.1 (Force Instant Play)...")
+print("[GOAT OPTIMIZER] Starting v6.0 (10-Batch Smart System)...")
 
 local ENTRY_START = os.clock()
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
@@ -14,15 +14,15 @@ local player
 repeat task.wait(0.1); player = Players.LocalPlayer until player
 
 -- ═══════════════════════════════════════════════════════════
---  [1] محاولة إزالة شاشة تحميل Roblox المتبقية (للسماح باللعب فورًا)
+--  [1] إزالة شاشة التحميل (للدخول السريع)
 -- ═══════════════════════════════════════════════════════════
 pcall(function()
     ReplicatedFirst:RemoveDefaultLoadingScreen()
-    print("[GOAT v5.1] Default loading screen removed")
+    print("[GOAT v6.0] Loading screen removed")
 end)
 
 -- ═══════════════════════════════════════════════════════════
---  [2] نظام "الأرضية أولاً" (Ground-First)
+--  [2] نظام الأرضية أولاً (Anti-Void)
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
     local char
@@ -31,12 +31,10 @@ task.spawn(function()
     if not hrp then return end
 
     hrp.Anchored = true
-    print("[GOAT v5.1] Character anchored")
     
     pcall(function()
         player:RequestStreamAroundAsync(hrp.Position)
     end)
-    print("[GOAT v5.1] Requested ground stream")
     
     local t0 = os.clock()
     while os.clock() - t0 < 10 do
@@ -47,12 +45,12 @@ task.spawn(function()
     
     if hrp and hrp.Parent then
         hrp.Anchored = false
-        print("[GOAT v5.1] Ground found, character released")
+        print("[GOAT v6.0] Ground found, character released")
     end
 end)
 
 -- ═══════════════════════════════════════════════════════════
---  [3] منع كل الأجزاء والمؤثرات من الظهور
+--  [3] منع الأنميشن والصور (فوراً)
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
     local char
@@ -78,10 +76,6 @@ task.spawn(function()
                 elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
                        or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
                     obj.Enabled = false
-                elseif obj:IsA("BasePart") then
-                    obj.Material = Enum.Material.Plastic
-                    obj.CastShadow = false
-                    obj.Reflectance = 0
                 end
             end)
         end)
@@ -90,22 +84,97 @@ end)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-if _G.__GOAT_V51_RUNNING then return end
-_G.__GOAT_V51_RUNNING = true
+if _G.__GOAT_V60_RUNNING then return end
+_G.__GOAT_V60_RUNNING = true
 
-print("[GOAT v5.1] Initializing")
+-- ═══════════════════════════════════════════════════════════
+--  [4] نظام الـ 10 مجموعات (Smart Batches)
+-- ═══════════════════════════════════════════════════════════
+task.spawn(function()
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
 
-local character
-repeat task.wait(0.1); character = player.Character until character
-character:WaitForChild("Humanoid", 10)
+    -- 1. جلب كل الأجزاء القريبة منك (200 stud)
+    local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 200)
+    local spawnPos = hrp.Position
+
+    -- 2. فلترة الأجزاء الشاذة (التي تسبب أخطاء في الحساب)
+    local validParts = {}
+    for _, p in ipairs(parts) do
+        if p:IsA("BasePart") then
+            local pos = p.Position
+            if math.abs(pos.X) < 5000 and math.abs(pos.Y) < 5000 and math.abs(pos.Z) < 5000 then
+                table.insert(validParts, p)
+            end
+        end
+    end
+
+    -- 3. ترتيب الأجزاء: الأرضية (Y منخفض) أولاً، ثم الأقرب مسافة
+    table.sort(validParts, function(a, b)
+        -- إذا كان أحدهما أرضية (Y أقل)، نعطيه أولوية
+        local aIsGround = (a.Position.Y < spawnPos.Y - 2)
+        local bIsGround = (b.Position.Y < spawnPos.Y - 2)
+        
+        if aIsGround and not bIsGround then return true end
+        if bIsGround and not aIsGround then return false end
+        
+        -- إذا كانا في نفس المستوى، الأقرب أولاً
+        local distA = (a.Position - spawnPos).Magnitude
+        local distB = (b.Position - spawnPos).Magnitude
+        return distA < distB
+    end)
+
+    local totalParts = #validParts
+    print(string.format("[GOAT v6.0] Found %d nearby parts", totalParts))
+    
+    if totalParts == 0 then return end
+
+    -- 4. تقسيم الأجزاء إلى 10 مجموعات
+    local batchSize = math.ceil(totalParts / 10)
+    
+    local function optimizePart(p)
+        pcall(function()
+            p.Material        = Enum.Material.Plastic
+            p.CastShadow      = false
+            p.Reflectance     = 0
+            p.MaterialVariant = ""
+        end)
+    end
+
+    -- 5. معالجة المجموعات
+    for batchNum = 1, 10 do
+        local startIdx = (batchNum - 1) * batchSize + 1
+        local endIdx = math.min(batchNum * batchSize, totalParts)
+        
+        if startIdx <= totalParts then
+            print(string.format("[GOAT v6.0] Processing Batch %d/10 (%d parts)", batchNum, endIdx - startIdx + 1))
+            
+            -- نمر على الأجزاء في هذه المجموعة
+            for i = startIdx, endIdx do
+                optimizePart(validParts[i])
+                
+                -- تنفس كل 10 أجزاء لمنع التجميد
+                if i % 10 == 0 then
+                    RunService.Heartbeat:Wait()
+                end
+            end
+            
+            -- انتظار بسيط بين كل مجموعة والأخرى (0.05 ثانية)
+            -- هذا يعطي المعالج وقتاً للراحة
+            task.wait(0.05)
+        end
+    end
+    
+    print("[GOAT v6.0] All batches processed smoothly")
+end)
+
+-- ═══════════════════════════════════════════════════════════
+--  [5] الإشعار
+-- ═══════════════════════════════════════════════════════════
 local playerGui = player:WaitForChild("PlayerGui", 15)
-
 local ENTRY_TIME = os.clock() - ENTRY_START
-print(string.format("[GOAT v5.1] Entry time: %.2fs", ENTRY_TIME))
 
--- ═══════════════════════════════════════════════════════════
---  [4] الإشعار
--- ═══════════════════════════════════════════════════════════
 local function showNotification()
     if not playerGui or not playerGui.Parent then return end
     local old = playerGui:FindFirstChild("GoatOptimizerNotif")
@@ -157,7 +226,7 @@ local function showNotification()
     Sub.Size = UDim2.new(1, -30, 0, 16)
     Sub.Position = UDim2.new(0, 15, 0, 34)
     Sub.BackgroundTransparency = 1
-    Sub.Text = string.format("ACTIVATED • Entry: %.1fs", ENTRY_TIME)
+    Sub.Text = string.format("ACTIVATED • %.1fs", ENTRY_TIME)
     Sub.TextColor3 = Color3.fromRGB(180, 180, 180)
     Sub.Font = Enum.Font.GothamMedium
     Sub.TextSize = 11
@@ -184,7 +253,7 @@ end
 showNotification()
 
 -- ═══════════════════════════════════════════════════════════
---  [5] تحسين الإضاءة
+--  [6] تحسين الإضاءة + الأنميشن
 -- ═══════════════════════════════════════════════════════════
 local function optimizeLighting()
     pcall(function()
@@ -241,7 +310,7 @@ player.CharacterAdded:Connect(function(newChar)
 end)
 
 -- ═══════════════════════════════════════════════════════════
---  [6] queue_on_teleport
+--  [7] queue_on_teleport
 -- ═══════════════════════════════════════════════════════════
 local function queueForNextServer()
     local payload = ('loadstring(game:HttpGet("%s"))()'):format(SCRIPT_URL)
@@ -251,14 +320,6 @@ local function queueForNextServer()
     end
     if type(syn) == "table" and syn.queue_on_teleport then
         local ok = pcall(function() syn.queue_on_teleport(payload) end)
-        if ok then print("[GOAT] Queued"); return true end
-    end
-    if type(fluxus) == "table" and fluxus.queue_on_teleport then
-        local ok = pcall(function() fluxus.queue_on_teleport(payload) end)
-        if ok then print("[GOAT] Queued"); return true end
-    end
-    if type(krnl) == "table" and krnl.queue_on_teleport then
-        local ok = pcall(function() krnl.queue_on_teleport(payload) end)
         if ok then print("[GOAT] Queued"); return true end
     end
     if type(delta) == "table" and delta.queue_on_teleport then
@@ -282,4 +343,4 @@ pcall(function()
     end)
 end)
 
-print("[GOAT v5.1] Ready")
+print("[GOAT v6.0] Ready")
