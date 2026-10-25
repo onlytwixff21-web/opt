@@ -71,24 +71,6 @@ task.spawn(function()
         player:RequestStreamAroundAsync(hrp.Position)
     end)
     
-    local nearbyParts = Workspace:GetPartBoundsInRadius(hrp.Position, 300)
-    local hiddenForBoost = {}
-    for _, p in ipairs(nearbyParts) do
-        if p:IsA("BasePart") and p.Name ~= "Baseplate" then
-            pcall(function()
-                p.Material        = Enum.Material.Plastic
-                p.CastShadow      = false
-                p.Reflectance     = 0
-                p.MaterialVariant = ""
-                
-                if p.Transparency < 1 then
-                    hiddenForBoost[p] = p.Transparency
-                    p.Transparency = 1
-                end
-            end)
-        end
-    end
-
     local t0 = os.clock()
     local groundFound = false
     while os.clock() - t0 < 10 do
@@ -112,16 +94,6 @@ task.spawn(function()
     
     local LOAD_TIME = os.clock() - START_TIME
     print(string.format("[GOAT OPTIMIZER] You can play now! (Load time: %.2fs)", LOAD_TIME))
-
-    task.delay(0.5, function()
-        for p, origTrans in pairs(hiddenForBoost) do
-            pcall(function()
-                if p and p.Parent then
-                    p.Transparency = origTrans
-                end
-            end)
-        end
-    end)
 end)
 
 task.spawn(function()
