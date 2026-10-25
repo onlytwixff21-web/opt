@@ -1,13 +1,7 @@
-print("[GOAT OPTIMIZER] Starting v4.5 (Anti-Void Spawn)...")
+print("[GOAT OPTIMIZER] Starting v5.0 (Ground-First System)...")
 
 local ENTRY_START = os.clock()
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
-local CHUNK_SIZE = 150
-local FIRST_CHUNKS = 4
-local CHUNK_INTERVAL = 0.3
-local MAX_CHUNKS = 500
-local MAX_REASONABLE_POS = 5000
-local MAX_REASONABLE_SIZE = 3000
 
 local Players      = game:GetService("Players")
 local Workspace    = game:GetService("Workspace")
@@ -16,55 +10,52 @@ local RunService   = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local player
-repeat
-    task.wait(0.1)
-    player = Players.LocalPlayer
-until player
+repeat task.wait(0.1); player = Players.LocalPlayer until player
 
 -- ═══════════════════════════════════════════════════════════
---  [1] حل مشكلة الفراغ (Anti-Void) + منع الأنميشن
+--  [1] نظام "الأرض أولاً" (Ground-First)
+--  نمسك الشخصية، نطلب الأرض، ثم نبدأ تفعيل باقي الماب
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
     local char
-    repeat
-        task.wait(0.1)
-        char = player.Character
-    until char
-
+    repeat task.wait(0.1); char = player.Character until char
     local hrp = char:WaitForChild("HumanoidRootPart", 10)
-    
-    -- أ. تثبيت الشخصية لمنع السقوط في الفراغ
-    if hrp then
-        hrp.Anchored = true
-        print("[GOAT v4.5] Character anchored (Anti-Void)")
-        
-        -- ب. طلب من السيرفر إرسال الأرضية فوراً
-        pcall(function()
-            player:RequestStreamAroundAsync(hrp.Position)
-        end)
-        print("[GOAT v4.5] Stream requested")
-        
-        -- ج. انتظار ظهور الأرضية
-        local t0 = os.clock()
-        local groundFound = false
-        while os.clock() - t0 < 10 do
-            local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0))
-            if ray then
-                groundFound = true
-                break
-            end
-            task.wait(0.2)
-        end
-        
-        -- د. فك التثبيت
-        if hrp and hrp.Parent then
-            hrp.Anchored = false
-            print("[GOAT v4.5] Released (Ground: " .. tostring(groundFound) .. ")")
-        end
-    end
+    if not hrp then return end
 
-    -- هـ. منع الأنميشن
+    -- 1. تثبيت الشخصية (منع السقوط)
+    hrp.Anchored = true
+    print("[GOAT v5.0] Character anchored")
+    
+    -- 2. طلب الأرضية تحت أقدامنا فقط
+    pcall(function()
+        player:RequestStreamAroundAsync(hrp.Position)
+    end)
+    print("[GOAT v5.0] Requested ground stream")
+    
+    -- 3. الانتظار حتى تظهر الأرض
+    local t0 = os.clock()
+    while os.clock() - t0 < 10 do
+        local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0))
+        if ray then break end
+        task.wait(0.2)
+    end
+    
+    -- 4. فك التثبيت (الآن لدينا أرض)
+    if hrp and hrp.Parent then
+        hrp.Anchored = false
+        print("[GOAT v5.0] Ground found, character released")
+    end
+end)
+
+-- ═══════════════════════════════════════════════════════════
+--  [2] منع كل الأجزاء والمؤثرات من الظهور (قبل أي شيء)
+-- ═══════════════════════════════════════════════════════════
+task.spawn(function()
+    local char
+    repeat task.wait(0.1); char = player.Character until char
     local hum = char:WaitForChild("Humanoid", 10)
+    
+    -- منع الأنميشن
     if hum then
         local animator = hum:FindFirstChildOfClass("Animator")
         if animator then
@@ -76,7 +67,7 @@ task.spawn(function()
         if animate then animate.Disabled = true end
     end
 
-    -- و. اعتراض الصور والمؤثرات الجديدة
+    -- منع أي جزء أو مؤثر جديد من الظهور أو العمل
     Workspace.DescendantAdded:Connect(function(obj)
         task.defer(function()
             pcall(function()
@@ -97,218 +88,18 @@ end)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-if _G.__GOAT_V45_RUNNING then return end
-_G.__GOAT_V45_RUNNING = true
+if _G.__GOAT_V50_RUNNING then return end
+_G.__GOAT_V50_RUNNING = true
 
-print("[GOAT v4.5] Initializing")
+print("[GOAT v5.0] Initializing")
 
 local character
-repeat
-    task.wait(0.1)
-    character = player.Character
-until character
+repeat task.wait(0.1); character = player.Character until character
 character:WaitForChild("Humanoid", 10)
-
 local playerGui = player:WaitForChild("PlayerGui", 15)
 
 local ENTRY_TIME = os.clock() - ENTRY_START
-print(string.format("[GOAT v4.5] Entry time: %.2fs", ENTRY_TIME))
-
--- ═══════════════════════════════════════════════════════════
---  [2] نظام Chunks الذكي
--- ═══════════════════════════════════════════════════════════
-local function getSpawnPos()
-    local char = player.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    return hrp and hrp.Position or Vector3.new(0, 0, 0)
-end
-
-local function isReasonablePart(p)
-    if not p then return false end
-    local pos = p.Position
-    if math.abs(pos.X) > MAX_REASONABLE_POS then return false end
-    if math.abs(pos.Y) > MAX_REASONABLE_POS then return false end
-    if math.abs(pos.Z) > MAX_REASONABLE_POS then return false end
-    local size = p.Size
-    if size.X > MAX_REASONABLE_SIZE or size.Y > MAX_REASONABLE_SIZE or size.Z > MAX_REASONABLE_SIZE then
-        return false
-    end
-    return true
-end
-
-local function getMapBounds(spawnPos)
-    local minX, maxX = math.huge, -math.huge
-    local minY, maxY = math.huge, -math.huge
-    local minZ, maxZ = math.huge, -math.huge
-    local count = 0
-    local rejected = 0
-
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("BasePart") then
-            if isReasonablePart(obj) then
-                local p = obj.Position
-                if p.X < minX then minX = p.X end
-                if p.X > maxX then maxX = p.X end
-                if p.Y < minY then minY = p.Y end
-                if p.Y > maxY then maxY = p.Y end
-                if p.Z < minZ then minZ = p.Z end
-                if p.Z > maxZ then maxZ = p.Z end
-                count = count + 1
-            else
-                rejected = rejected + 1
-            end
-        end
-    end
-
-    print(string.format("[GOAT v4.5] Parts: %d valid, %d rejected", count, rejected))
-
-    if count < 10 then return nil end
-    if minX == math.huge then return nil end
-
-    return {
-        minX = minX, maxX = maxX,
-        minY = minY, maxY = maxY,
-        minZ = minZ, maxZ = maxZ,
-    }
-end
-
-local function buildChunks(bounds, spawnPos)
-    local chunks = {}
-    local xCount = math.ceil((bounds.maxX - bounds.minX) / CHUNK_SIZE)
-    local yCount = math.ceil((bounds.maxY - bounds.minY) / CHUNK_SIZE)
-    local zCount = math.ceil((bounds.maxZ - bounds.minZ) / CHUNK_SIZE)
-    local total = xCount * yCount * zCount
-
-    print(string.format("[GOAT v4.5] Map grid: %dx%dx%d = %d chunks",
-        xCount, yCount, zCount, total))
-
-    if total > MAX_CHUNKS then
-        return nil, total
-    end
-
-    for ix = 0, xCount - 1 do
-        for iy = 0, yCount - 1 do
-            for iz = 0, zCount - 1 do
-                local center = Vector3.new(
-                    bounds.minX + (ix + 0.5) * CHUNK_SIZE,
-                    bounds.minY + (iy + 0.5) * CHUNK_SIZE,
-                    bounds.minZ + (iz + 0.5) * CHUNK_SIZE
-                )
-                local dist = (center - spawnPos).Magnitude
-                table.insert(chunks, {
-                    center = center,
-                    dist = dist,
-                })
-            end
-        end
-    end
-
-    table.sort(chunks, function(a, b) return a.dist < b.dist end)
-    return chunks, total
-end
-
-local function getPartsInChunk(chunk)
-    local parts = Workspace:GetPartBoundsInBox(
-        CFrame.new(chunk.center),
-        Vector3.new(CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE)
-    )
-    local filtered = {}
-    for _, p in ipairs(parts) do
-        if isReasonablePart(p) then
-            table.insert(filtered, p)
-        end
-    end
-    return filtered
-end
-
-local function optimizePart(p)
-    pcall(function()
-        p.Material        = Enum.Material.Plastic
-        p.CastShadow      = false
-        p.Reflectance     = 0
-        p.MaterialVariant = ""
-    end)
-end
-
-local function processChunk(chunk)
-    local parts = getPartsInChunk(chunk)
-    if #parts == 0 then return end
-    local i = 1
-    local conn
-    conn = RunService.Heartbeat:Connect(function()
-        for _ = 1, 5 do
-            if i > #parts then conn:Disconnect(); return end
-            pcall(optimizePart, parts[i])
-            i = i + 1
-        end
-    end)
-end
-
-local function fallbackNearby()
-    local char = player.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 200)
-    local filtered = {}
-    for _, p in ipairs(parts) do
-        if isReasonablePart(p) then
-            table.insert(filtered, p)
-        end
-    end
-    print("[GOAT v4.5] Fallback: optimizing " .. #filtered .. " nearby parts")
-    local i = 1
-    local conn
-    conn = RunService.Heartbeat:Connect(function()
-        for _ = 1, 3 do
-            if i > #filtered then conn:Disconnect(); return end
-            pcall(optimizePart, filtered[i])
-            i = i + 1
-        end
-    end)
-end
-
-task.spawn(function()
-    local spawnPos = getSpawnPos()
-    print(string.format("[GOAT v4.5] Spawn: %.0f, %.0f, %.0f", spawnPos.X, spawnPos.Y, spawnPos.Z))
-
-    local bounds = getMapBounds(spawnPos)
-    if not bounds then
-        print("[GOAT v4.5] Could not read map bounds, using fallback")
-        fallbackNearby()
-        return
-    end
-
-    print(string.format("[GOAT v4.5] Map bounds: X[%.0f..%.0f] Y[%.0f..%.0f] Z[%.0f..%.0f]",
-        bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ))
-
-    local chunks, total = buildChunks(bounds, spawnPos)
-
-    if not chunks then
-        print(string.format("[GOAT v4.5] Too many chunks (%d > %d), using fallback",
-            total, MAX_CHUNKS))
-        fallbackNearby()
-        return
-    end
-
-    print(string.format("[GOAT v4.5] Using chunk system (%d chunks)", total))
-
-    for i = 1, math.min(FIRST_CHUNKS, #chunks) do
-        print(string.format("[GOAT v4.5] Loading chunk %d/%d (dist: %.0f)",
-            i, total, chunks[i].dist))
-        processChunk(chunks[i])
-    end
-
-    task.spawn(function()
-        for i = FIRST_CHUNKS + 1, #chunks do
-            task.wait(CHUNK_INTERVAL)
-            local c = chunks[i]
-            print(string.format("[GOAT v4.5] Loading chunk %d/%d (dist: %.0f)",
-                i, total, c.dist))
-            processChunk(c)
-        end
-        print(string.format("[GOAT v4.5] All %d chunks optimized", total))
-    end)
-end)
+print(string.format("[GOAT v5.0] Entry time: %.2fs", ENTRY_TIME))
 
 -- ═══════════════════════════════════════════════════════════
 --  [3] الإشعار
@@ -391,7 +182,7 @@ end
 showNotification()
 
 -- ═══════════════════════════════════════════════════════════
---  [4] تحسين الإضاءة والأنميشن
+--  [4] تحسين الإضاءة (لتسريع الريندر)
 -- ═══════════════════════════════════════════════════════════
 local function optimizeLighting()
     pcall(function()
@@ -489,4 +280,4 @@ pcall(function()
     end)
 end)
 
-print("[GOAT v4.5] Ready")
+print("[GOAT v5.0] Ready")
