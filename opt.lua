@@ -1,54 +1,48 @@
-print("[GOAT OPTIMIZER] Starting v10.0 (Instant Play & Force Low GFX)...")
-
-local ENTRY_START = os.clock()
-local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
+print("[GOAT OPTIMIZER] Starting v11.0 (Final Perfect Sync)...")
 
 local Players      = game:GetService("Players")
-local Workspace    = game:GetService("Workspace")
 local Lighting     = game:GetService("Lighting")
+local Workspace    = game:GetService("Workspace")
 local RunService   = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local player
 repeat task.wait(0.1); player = Players.LocalPlayer until player
 
--- ═══════════════════════════════════════════════════════════
---  [1] اعتراض أي جزء جديد فوراً (جرافيكس منخفضة من أول لحظة)
--- ═══════════════════════════════════════════════════════════
+pcall(function()
+    if Workspace.StreamingEnabled then
+        Workspace.StreamingEnabled = false
+    end
+end)
+
 Workspace.DescendantAdded:Connect(function(obj)
-    pcall(function()
-        if obj:IsA("BasePart") then
-            obj.Material        = Enum.Material.Plastic
-            obj.CastShadow      = false
-            obj.Reflectance     = 0
-            obj.MaterialVariant = ""
-        elseif obj:IsA("Decal") or obj:IsA("Texture") then
-            obj.Texture = ""
-        elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
+    task.defer(function()
+        pcall(function()
+            if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
                or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
-            obj.Enabled = false
-        end
+                obj.Enabled = false
+            elseif obj:IsA("BasePart") then
+                obj.Material        = Enum.Material.Plastic
+                obj.CastShadow      = false
+                obj.Reflectance     = 0
+                obj.MaterialVariant = ""
+            end
+        end)
     end)
 end)
 
--- ═══════════════════════════════════════════════════════════
---  [2] طلب الأرضية فقط + إزالة الملصق فوراً
--- ═══════════════════════════════════════════════════════════
 task.spawn(function()
     local char
     repeat task.wait(0.1); char = player.Character until char
     local hrp = char:WaitForChild("HumanoidRootPart", 10)
     if not hrp then return end
 
-    -- 1. تثبيت الشخصية في الهواء (منع السقوط)
     hrp.Anchored = true
     
-    -- 2. طلب الأرضية فقط
     pcall(function()
         player:RequestStreamAroundAsync(hrp.Position)
     end)
     
-    -- 3. الانتظار حتى ظهور الأرضية (راي كاست)
     local t0 = os.clock()
     while os.clock() - t0 < 10 do
         local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0))
@@ -56,13 +50,11 @@ task.spawn(function()
         task.wait(0.05)
     end
     
-    -- 4. فك التثبيت فوراً (لتتمكن من اللعب)
     if hrp and hrp.Parent then
         hrp.Anchored = false
+        print("[GOAT v11.0] Ground received. You can play now!")
     end
 
-    -- 5. حذف شاشة التحميل (الملصق) بالقوة لكن بأمان
-    -- الآن وقد وصلت الأرضية، لن تظهر شاشة سوداء
     local playerGui = player:FindFirstChild("PlayerGui")
     if playerGui then
         for _, gui in ipairs(playerGui:GetChildren()) do
@@ -76,9 +68,6 @@ task.spawn(function()
     end
 end)
 
--- ═══════════════════════════════════════════════════════════
---  [3] منع الأنميشن
--- ═══════════════════════════════════════════════════════════
 task.spawn(function()
     local char
     repeat task.wait(0.1); char = player.Character until char
@@ -98,20 +87,18 @@ end)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-if _G.__GOAT_V100_RUNNING then return end
-_G.__GOAT_V100_RUNNING = true
+if _G.__GOAT_V110_RUNNING then return end
+_G.__GOAT_V110_RUNNING = true
 
--- ═══════════════════════════════════════════════════════════
---  [4] تحسين الجرافيكس للأجزاء الموجودة مسبقاً (شوية شوية)
--- ═══════════════════════════════════════════════════════════
 task.spawn(function()
-    task.wait(2)
+    task.wait(3)
 
     local char = player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
     local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 200)
+    print(string.format("[GOAT v11.0] Optimizing %d parts slowly...", #parts))
     
     for i, p in ipairs(parts) do
         pcall(function()
@@ -128,13 +115,32 @@ task.spawn(function()
             task.wait(0.05)
         end
     end
+    print("[GOAT v11.0] Parts optimized.")
 end)
 
--- ═══════════════════════════════════════════════════════════
---  [5] الإشعار
--- ═══════════════════════════════════════════════════════════
+local function optimizeLighting()
+    pcall(function()
+        Lighting.GlobalShadows            = false
+        Lighting.Brightness               = 1.5
+        Lighting.FogEnd                   = 9e9
+        Lighting.FogStart                 = 0
+        Lighting.EnvironmentDiffuseScale  = 0
+        Lighting.EnvironmentSpecularScale = 0
+    end)
+    for _, obj in ipairs(Lighting:GetChildren()) do
+        if obj:IsA("BloomEffect") or obj:IsA("BlurEffect")
+           or obj:IsA("ColorCorrectionEffect") or obj:IsA("SunRaysEffect")
+           or obj:IsA("DepthOfFieldEffect") then
+            pcall(function() obj.Enabled = false end)
+        elseif obj:IsA("Atmosphere") then
+            pcall(function() obj:Destroy() end)
+        end
+    end
+end
+
+task.spawn(function() pcall(optimizeLighting) end)
+
 local playerGui = player:WaitForChild("PlayerGui", 15)
-local ENTRY_TIME = os.clock() - ENTRY_START
 
 local function showNotification()
     if not playerGui or not playerGui.Parent then return end
@@ -155,8 +161,8 @@ local function showNotification()
     Frame.BackgroundTransparency = 0.05
     Frame.BorderSizePixel = 0
     Frame.Parent = ScreenGui
-    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 12)
 
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 12)
     local Stroke = Instance.new("UIStroke")
     Stroke.Color = Color3.fromRGB(255, 255, 255)
     Stroke.Thickness = 1.5
@@ -187,25 +193,25 @@ local function showNotification()
     Sub.Size = UDim2.new(1, -30, 0, 16)
     Sub.Position = UDim2.new(0, 15, 0, 34)
     Sub.BackgroundTransparency = 1
-    Sub.Text = string.format("ACTIVATED • %.1fs", ENTRY_TIME)
+    Sub.Text = "ACTIVATED • FAST LOAD"
     Sub.TextColor3 = Color3.fromRGB(180, 180, 180)
     Sub.Font = Enum.Font.GothamMedium
     Sub.TextSize = 11
     Sub.TextXAlignment = Enum.TextXAlignment.Left
     Sub.Parent = Frame
 
-    TweenService:Create(Frame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
         Position = UDim2.new(0.5, -160, 0, 20)
     }):Play()
 
-    task.delay(3, function()
+    task.delay(2, function()
         if Frame and Frame.Parent then
             pcall(function()
-                TweenService:Create(Frame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                TweenService:Create(Frame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
                     Position = UDim2.new(0.5, -160, 0, -80)
                 }):Play()
             end)
-            task.wait(0.3)
+            task.wait(0.35)
             if ScreenGui and ScreenGui.Parent then pcall(function() ScreenGui:Destroy() end) end
         end
     end)
@@ -213,63 +219,17 @@ end
 
 showNotification()
 
--- ═══════════════════════════════════════════════════════════
---  [6] تحسين الإضاءة
--- ═══════════════════════════════════════════════════════════
-local function optimizeLighting()
-    pcall(function()
-        Lighting.GlobalShadows            = false
-        Lighting.Brightness               = 1.5
-        Lighting.FogEnd                   = 9e9
-        Lighting.FogStart                 = 0
-        Lighting.EnvironmentDiffuseScale  = 0
-        Lighting.EnvironmentSpecularScale = 0
-    end)
-    for _, obj in ipairs(Lighting:GetChildren()) do
-        if obj:IsA("BloomEffect") or obj:IsA("BlurEffect")
-           or obj:IsA("ColorCorrectionEffect") or obj:IsA("SunRaysEffect")
-           or obj:IsA("DepthOfFieldEffect") then
-            pcall(function() obj.Enabled = false end)
-        elseif obj:IsA("Atmosphere") or obj:IsA("Clouds") or obj:IsA("Sky") then
-            pcall(function() obj:Destroy() end)
+player.CharacterAdded:Connect(function(newChar)
+    task.wait(0.3)
+    local humanoid = newChar:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        local animator = humanoid:FindFirstChildOfClass("Animator")
+        if animator then
+            animator.AnimationPlayed:Connect(function(track)
+                task.defer(function() pcall(function() track:Stop(0) end) end)
+            end)
         end
     end
-end
-
-task.spawn(function() pcall(optimizeLighting) end)
-
--- ═══════════════════════════════════════════════════════════
---  [7] queue_on_teleport
--- ═══════════════════════════════════════════════════════════
-local function queueForNextServer()
-    local payload = ('loadstring(game:HttpGet("%s"))()'):format(SCRIPT_URL)
-    if type(queue_on_teleport) == "function" then
-        local ok = pcall(function() queue_on_teleport(payload) end)
-        if ok then print("[GOAT] Queued"); return true end
-    end
-    if type(syn) == "table" and syn.queue_on_teleport then
-        local ok = pcall(function() syn.queue_on_teleport(payload) end)
-        if ok then print("[GOAT] Queued"); return true end
-    end
-    if type(delta) == "table" and delta.queue_on_teleport then
-        local ok = pcall(function() delta.queue_on_teleport(payload) end)
-        if ok then print("[GOAT] Queued"); return true end
-    end
-    return false
-end
-
-task.spawn(function()
-    task.wait(2)
-    queueForNextServer()
 end)
 
-pcall(function()
-    local LocalPlayer = game:GetService("Players").LocalPlayer
-    LocalPlayer.OnTeleport:Connect(function(State)
-        if State == Enum.TeleportState.Started then
-            queueForNextServer()
-        end
-    end)
-end)
-
-print("[GOAT v10.0] Ready")
+print("[GOAT v11.0] Ready ✓")
