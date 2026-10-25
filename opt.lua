@@ -1,4 +1,3 @@
-
 local Players      = game:GetService("Players")
 local Lighting     = game:GetService("Lighting")
 local Workspace    = game:GetService("Workspace")
@@ -25,7 +24,6 @@ end)
 
 local playerGui = player:WaitForChild("PlayerGui", 15)
 
--- التعديل هنا: حذف ملصق التحميل فقط وترك باقي الواجهات
 local function clearScreens()
     if playerGui then
         for _, gui in ipairs(playerGui:GetChildren()) do
@@ -92,6 +90,20 @@ task.spawn(function()
         player:RequestStreamAroundAsync(hrp.Position)
     end)
     
+    -- 💡 الحيلة: إخفاء الأجزاء القريبة لثانية واحدة لمنع الدرب فريم
+    local nearbyParts = Workspace:GetPartBoundsInRadius(hrp.Position, 300)
+    local hiddenForBoost = {}
+    for _, p in ipairs(nearbyParts) do
+        if p:IsA("BasePart") and p.Name ~= "Baseplate" then
+            pcall(function()
+                if p.Transparency < 1 then
+                    hiddenForBoost[p] = p.Transparency
+                    p.Transparency = 1
+                end
+            end)
+        end
+    end
+
     task.wait(0.3)
     
     if hrp and hrp.Parent then
@@ -100,6 +112,17 @@ task.spawn(function()
     
     clearScreens()
     print("[GOAT OPTIMIZER] You can play now!")
+
+    -- إعادة إظهار الأجزاء بعد أن يستقر المعالج
+    task.delay(0.5, function()
+        for p, origTrans in pairs(hiddenForBoost) do
+            pcall(function()
+                if p and p.Parent then
+                    p.Transparency = origTrans
+                end
+            end)
+        end
+    end)
 end)
 
 task.spawn(function()
@@ -167,6 +190,7 @@ end
 
 task.spawn(function() pcall(optimizeLighting) end)
 
+-- 💡 تم تحسين الإشعار ليكون أكثر أناقة وسلاسة
 local function showNotification()
     if not playerGui or not playerGui.Parent then return end
     local old = playerGui:FindFirstChild("GoatOptimizerNotif")
@@ -179,61 +203,89 @@ local function showNotification()
     ScreenGui.DisplayOrder = 999999
     ScreenGui.Parent = playerGui
 
+    -- إطار الإشعار بحجم أكبر وأكثر جاذبية
     local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0, 320, 0, 60)
-    Frame.Position = UDim2.new(0.5, -160, 0, -80)
+    Frame.Size = UDim2.new(0, 340, 0, 64)
+    Frame.Position = UDim2.new(0.5, -170, 0, -100)
     Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    Frame.BackgroundTransparency = 0.05
+    Frame.BackgroundTransparency = 0.1
     Frame.BorderSizePixel = 0
     Frame.Parent = ScreenGui
 
-    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 12)
+    -- حواف دائرية ناعمة
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 14)
+
+    -- حدود بيضاء خفيفة
     local Stroke = Instance.new("UIStroke")
     Stroke.Color = Color3.fromRGB(255, 255, 255)
     Stroke.Thickness = 1.5
-    Stroke.Transparency = 0.3
+    Stroke.Transparency = 0.4
+    Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     Stroke.Parent = Frame
 
+    -- شريط الإضاءة السفلي
     local Accent = Instance.new("Frame")
-    Accent.Size = UDim2.new(1, -24, 0, 2)
-    Accent.Position = UDim2.new(0.5, 0, 1, -6)
+    Accent.Size = UDim2.new(1, -30, 0, 2)
+    Accent.Position = UDim2.new(0.5, 0, 1, -7)
     Accent.AnchorPoint = Vector2.new(0.5, 1)
     Accent.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     Accent.BorderSizePixel = 0
     Accent.Parent = Frame
     Instance.new("UICorner", Accent).CornerRadius = UDim.new(1, 0)
 
+    -- تدرج لوني خفيف في الخلفية
+    local Gradient = Instance.new("UIGradient")
+    Gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 20)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 30, 30))
+    })
+    Gradient.Rotation = 45
+    Gradient.Parent = Frame
+
+    -- الأيقونة (علامة GOAT)
+    local Icon = Instance.new("TextLabel")
+    Icon.Size = UDim2.new(0, 40, 0, 40)
+    Icon.Position = UDim2.new(0, 15, 0.5, -20)
+    Icon.BackgroundTransparency = 1
+    Icon.Text = "🐐"
+    Icon.TextSize = 28
+    Icon.Parent = Frame
+
+    -- العنوان الرئيسي
     local Title = Instance.new("TextLabel")
-    Title.Size = UDim2.new(1, -30, 0, 26)
-    Title.Position = UDim2.new(0, 15, 0, 8)
+    Title.Size = UDim2.new(1, -75, 0, 22)
+    Title.Position = UDim2.new(0, 65, 0, 12)
     Title.BackgroundTransparency = 1
     Title.Text = "GOAT OPTIMIZER"
     Title.TextColor3 = Color3.fromRGB(255, 255, 255)
     Title.Font = Enum.Font.GothamBlack
-    Title.TextSize = 18
+    Title.TextSize = 16
     Title.TextXAlignment = Enum.TextXAlignment.Left
     Title.Parent = Frame
 
+    -- النص الفرعي
     local Sub = Instance.new("TextLabel")
-    Sub.Size = UDim2.new(1, -30, 0, 16)
-    Sub.Position = UDim2.new(0, 15, 0, 34)
+    Sub.Size = UDim2.new(1, -75, 0, 14)
+    Sub.Position = UDim2.new(0, 65, 0, 34)
     Sub.BackgroundTransparency = 1
-    Sub.Text = "ACTIVATED • FAST LOAD"
-    Sub.TextColor3 = Color3.fromRGB(180, 180, 180)
+    Sub.Text = "ACTIVATED • ZERO LAG"
+    Sub.TextColor3 = Color3.fromRGB(160, 160, 160)
     Sub.Font = Enum.Font.GothamMedium
-    Sub.TextSize = 11
+    Sub.TextSize = 10
     Sub.TextXAlignment = Enum.TextXAlignment.Left
     Sub.Parent = Frame
 
-    TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0.5, -160, 0, 20)
+    -- حركة الدخول (من الأعلى)
+    TweenService:Create(Frame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0.5, -170, 0, 20)
     }):Play()
 
-    task.delay(2, function()
+    -- حركة الخروج بعد ثانيتين
+    task.delay(2.5, function()
         if Frame and Frame.Parent then
             pcall(function()
                 TweenService:Create(Frame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                    Position = UDim2.new(0.5, -160, 0, -80)
+                    Position = UDim2.new(0.5, -170, 0, -100)
                 }):Play()
             end)
             task.wait(0.35)
