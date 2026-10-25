@@ -17,24 +17,53 @@ pcall(function()
     end
 end)
 
+-- تغطية الشاشة السوداء بشاشة أنيقة من صنعنا (حتى لا ترى سواداً)
+local overlay = Instance.new("ScreenGui")
+overlay.Name = "GoatOptimizerOverlay"
+overlay.ResetOnSpawn = false
+overlay.IgnoreGuiInset = true
+overlay.DisplayOrder = 9999999
+overlay.Parent = player:WaitForChild("PlayerGui")
+
+local bg = Instance.new("Frame")
+bg.Size = UDim2.new(1, 0, 1, 0)
+bg.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+bg.BorderSizePixel = 0
+bg.Parent = overlay
+
+local text = Instance.new("TextLabel")
+text.Size = UDim2.new(1, 0, 1, 0)
+text.BackgroundTransparency = 1
+text.Text = "Loading Ground..."
+text.TextColor3 = Color3.fromRGB(255, 255, 255)
+text.Font = Enum.Font.GothamBlack
+text.TextSize = 24
+text.Parent = bg
+
+-- منع تحميل الأجزاء الأخرى (إخفائها فوراً) حتى نسمح نحن بظهورها
+local hiddenParts = {}
 Workspace.DescendantAdded:Connect(function(obj)
     task.defer(function()
         pcall(function()
-            if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
-               or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
-                obj.Enabled = false
+            if obj:IsA("BasePart") then
+                obj.Material = Enum.Material.Plastic
+                obj.CastShadow = false
+                obj.Reflectance = 0
+                obj.MaterialVariant = ""
+                if obj.Name ~= "Baseplate" and obj.Name ~= "Terrain" then
+                    obj.Transparency = 1
+                    hiddenParts[obj] = true
+                end
             elseif obj:IsA("Decal") or obj:IsA("Texture") then
                 obj.Texture = ""
-            elseif obj:IsA("BasePart") then
-                obj.Material        = Enum.Material.Plastic
-                obj.CastShadow      = false
-                obj.Reflectance     = 0
-                obj.MaterialVariant = ""
+            elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
+                obj.Enabled = false
             end
         end)
     end)
 end)
 
+-- تثبيت اللاعب وطلب الأرضية
 task.spawn(function()
     local char
     repeat task.wait(0.1); char = player.Character until char
@@ -48,7 +77,7 @@ task.spawn(function()
     end)
     
     local t0 = os.clock()
-    while os.clock() - t0 < 10 do
+    while os.clock() - t0 < 2 do
         local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0))
         if ray then break end
         task.wait(0.05)
@@ -58,6 +87,7 @@ task.spawn(function()
         hrp.Anchored = false
     end
 
+    -- إزالة الملصق بالقوة
     local playerGui = player:FindFirstChild("PlayerGui")
     if playerGui then
         for _, gui in ipairs(playerGui:GetChildren()) do
@@ -69,38 +99,38 @@ task.spawn(function()
             end
         end
     end
-end)
-
-task.spawn(function()
-    local char
-    repeat task.wait(0.1); char = player.Character until char
-    local hum = char:WaitForChild("Humanoid", 10)
     
-    if hum then
-        local animator = hum:FindFirstChildOfClass("Animator")
-        if animator then
-            animator.AnimationPlayed:Connect(function(track)
-                pcall(function() track:Stop(0) end)
-            end)
-        end
-        local animate = char:FindFirstChild("Animate")
-        if animate then animate.Disabled = true end
+    -- إزالة شاشة التغطية بعد التأكد من الأرضية
+    if overlay and overlay.Parent then
+        overlay:Destroy()
+        print("[GOAT OPTIMIZER] You can play now!")
     end
 end)
 
-if not game:IsLoaded() then game.Loaded:Wait() end
+-- إعادة تطبيق منع الأجزاء عند الموت
+player.CharacterAdded:Connect(function(newChar)
+    task.wait(0.3)
+    local humanoid = newChar:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        local animator = humanoid:FindFirstChildOfClass("Animator")
+        if animator then
+            animator.AnimationPlayed:Connect(function(track)
+                task.defer(function() pcall(function() track:Stop(0) end) end)
+            end)
+        end
+    end
+end)
 
-if _G.__OPTIMIZER_RUNNING then return end
-_G.__OPTIMIZER_RUNNING = true
-
+-- تحميل الأجزاء "شوية بشوية" بعد أن تبدأ اللعب
 task.spawn(function()
-    task.wait(2)
+    task.wait(2) -- ننتظرك لتستقر وتلعب
 
     local char = player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
     local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 150)
+    print("[GOAT OPTIMIZER] Processing " .. #parts .. " parts slowly...")
     
     for i, p in ipairs(parts) do
         pcall(function()
@@ -109,6 +139,8 @@ task.spawn(function()
                 p.CastShadow      = false
                 p.Reflectance     = 0
                 p.MaterialVariant = ""
+                p.Transparency    = 0 -- إظهار الجزء تدريجياً
+                hiddenParts[p] = nil
             end
         end)
         
@@ -117,6 +149,7 @@ task.spawn(function()
             task.wait(0.1)
         end
     end
+    print("[GOAT OPTIMIZER] All systems ready!")
 end)
 
 local function optimizeLighting()
@@ -141,139 +174,17 @@ end
 
 task.spawn(function() pcall(optimizeLighting) end)
 
-local playerGui = player:WaitForChild("PlayerGui", 15)
-
-local function showNotification()
-    if not playerGui or not playerGui.Parent then return end
-    local old = playerGui:FindFirstChild("GoatOptimizerNotif")
-    if old then pcall(function() old:Destroy() end) end
-
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "GoatOptimizerNotif"
-    ScreenGui.ResetOnSpawn = false
-    ScreenGui.IgnoreGuiInset = true
-    ScreenGui.DisplayOrder = 999999
-    ScreenGui.Parent = playerGui
-
-    local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0, 320, 0, 60)
-    Frame.Position = UDim2.new(0.5, -160, 0, -80)
-    Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    Frame.BackgroundTransparency = 0.05
-    Frame.BorderSizePixel = 0
-    Frame.Parent = ScreenGui
-
-    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 12)
-    local Stroke = Instance.new("UIStroke")
-    Stroke.Color = Color3.fromRGB(255, 255, 255)
-    Stroke.Thickness = 1.5
-    Stroke.Transparency = 0.3
-    Stroke.Parent = Frame
-
-    local Accent = Instance.new("Frame")
-    Accent.Size = UDim2.new(1, -24, 0, 2)
-    Accent.Position = UDim2.new(0.5, 0, 1, -6)
-    Accent.AnchorPoint = Vector2.new(0.5, 1)
-    Accent.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    Accent.BorderSizePixel = 0
-    Accent.Parent = Frame
-    Instance.new("UICorner", Accent).CornerRadius = UDim.new(1, 0)
-
-    local Title = Instance.new("TextLabel")
-    Title.Size = UDim2.new(1, -30, 0, 26)
-    Title.Position = UDim2.new(0, 15, 0, 8)
-    Title.BackgroundTransparency = 1
-    Title.Text = "GOAT OPTIMIZER"
-    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Title.Font = Enum.Font.GothamBlack
-    Title.TextSize = 18
-    Title.TextXAlignment = Enum.TextXAlignment.Left
-    Title.Parent = Frame
-
-    local Sub = Instance.new("TextLabel")
-    Sub.Size = UDim2.new(1, -30, 0, 16)
-    Sub.Position = UDim2.new(0, 15, 0, 34)
-    Sub.BackgroundTransparency = 1
-    Sub.Text = "ACTIVATED • FAST LOAD"
-    Sub.TextColor3 = Color3.fromRGB(180, 180, 180)
-    Sub.Font = Enum.Font.GothamMedium
-    Sub.TextSize = 11
-    Sub.TextXAlignment = Enum.TextXAlignment.Left
-    Sub.Parent = Frame
-
-    TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0.5, -160, 0, 20)
-    }):Play()
-
-    task.delay(2, function()
-        if Frame and Frame.Parent then
-            pcall(function()
-                TweenService:Create(Frame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                    Position = UDim2.new(0.5, -160, 0, -80)
-                }):Play()
-            end)
-            task.wait(0.35)
-            if ScreenGui and ScreenGui.Parent then pcall(function() ScreenGui:Destroy() end) end
-        end
-    end)
-end
-
-showNotification()
-
-player.CharacterAdded:Connect(function(newChar)
-    task.wait(0.3)
-    local humanoid = newChar:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        local animator = humanoid:FindFirstChildOfClass("Animator")
-        if animator then
-            animator.AnimationPlayed:Connect(function(track)
-                task.defer(function() pcall(function() track:Stop(0) end) end)
-            end)
-        end
-    end
-end)
-
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        local h = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-        if h and h.Health > 0 then
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -10, 0))
-                if ray then
-                    print("[GOAT OPTIMIZER] You can play now!")
-                    break
-                end
-            end
-        end
-    end
-end)
-
-task.spawn(function()
-    task.wait(5)
-    print("[GOAT OPTIMIZER] All systems ready!")
-end)
-
 local function queueForNextServer()
     local payload = ('loadstring(game:HttpGet("%s"))()'):format(SCRIPT_URL)
     if type(queue_on_teleport) == "function" then
         pcall(function() queue_on_teleport(payload) end)
-        return
-    end
-    if type(syn) == "table" and syn.queue_on_teleport then
+    elseif type(syn) == "table" and syn.queue_on_teleport then
         pcall(function() syn.queue_on_teleport(payload) end)
-        return
-    end
-    if type(fluxus) == "table" and fluxus.queue_on_teleport then
+    elseif type(fluxus) == "table" and fluxus.queue_on_teleport then
         pcall(function() fluxus.queue_on_teleport(payload) end)
-        return
-    end
-    if type(krnl) == "table" and krnl.queue_on_teleport then
+    elseif type(krnl) == "table" and krnl.queue_on_teleport then
         pcall(function() krnl.queue_on_teleport(payload) end)
-        return
-    end
-    if type(delta) == "table" and delta.queue_on_teleport then
+    elseif type(delta) == "table" and delta.queue_on_teleport then
         pcall(function() delta.queue_on_teleport(payload) end)
     end
 end
