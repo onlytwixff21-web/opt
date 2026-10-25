@@ -1,4 +1,4 @@
-print("[GOAT OPTIMIZER] Starting v5.0 (Ground-First System)...")
+print("[GOAT OPTIMIZER] Starting v5.1 (Force Instant Play)...")
 
 local ENTRY_START = os.clock()
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
@@ -8,13 +8,21 @@ local Workspace    = game:GetService("Workspace")
 local Lighting     = game:GetService("Lighting")
 local RunService   = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
 
 local player
 repeat task.wait(0.1); player = Players.LocalPlayer until player
 
 -- ═══════════════════════════════════════════════════════════
---  [1] نظام "الأرض أولاً" (Ground-First)
---  نمسك الشخصية، نطلب الأرض، ثم نبدأ تفعيل باقي الماب
+--  [1] محاولة إزالة شاشة تحميل Roblox المتبقية (للسماح باللعب فورًا)
+-- ═══════════════════════════════════════════════════════════
+pcall(function()
+    ReplicatedFirst:RemoveDefaultLoadingScreen()
+    print("[GOAT v5.1] Default loading screen removed")
+end)
+
+-- ═══════════════════════════════════════════════════════════
+--  [2] نظام "الأرضية أولاً" (Ground-First)
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
     local char
@@ -22,40 +30,35 @@ task.spawn(function()
     local hrp = char:WaitForChild("HumanoidRootPart", 10)
     if not hrp then return end
 
-    -- 1. تثبيت الشخصية (منع السقوط)
     hrp.Anchored = true
-    print("[GOAT v5.0] Character anchored")
+    print("[GOAT v5.1] Character anchored")
     
-    -- 2. طلب الأرضية تحت أقدامنا فقط
     pcall(function()
         player:RequestStreamAroundAsync(hrp.Position)
     end)
-    print("[GOAT v5.0] Requested ground stream")
+    print("[GOAT v5.1] Requested ground stream")
     
-    -- 3. الانتظار حتى تظهر الأرض
     local t0 = os.clock()
     while os.clock() - t0 < 10 do
         local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0))
         if ray then break end
-        task.wait(0.2)
+        task.wait(0.1)
     end
     
-    -- 4. فك التثبيت (الآن لدينا أرض)
     if hrp and hrp.Parent then
         hrp.Anchored = false
-        print("[GOAT v5.0] Ground found, character released")
+        print("[GOAT v5.1] Ground found, character released")
     end
 end)
 
 -- ═══════════════════════════════════════════════════════════
---  [2] منع كل الأجزاء والمؤثرات من الظهور (قبل أي شيء)
+--  [3] منع كل الأجزاء والمؤثرات من الظهور
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
     local char
     repeat task.wait(0.1); char = player.Character until char
     local hum = char:WaitForChild("Humanoid", 10)
     
-    -- منع الأنميشن
     if hum then
         local animator = hum:FindFirstChildOfClass("Animator")
         if animator then
@@ -67,7 +70,6 @@ task.spawn(function()
         if animate then animate.Disabled = true end
     end
 
-    -- منع أي جزء أو مؤثر جديد من الظهور أو العمل
     Workspace.DescendantAdded:Connect(function(obj)
         task.defer(function()
             pcall(function()
@@ -88,10 +90,10 @@ end)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-if _G.__GOAT_V50_RUNNING then return end
-_G.__GOAT_V50_RUNNING = true
+if _G.__GOAT_V51_RUNNING then return end
+_G.__GOAT_V51_RUNNING = true
 
-print("[GOAT v5.0] Initializing")
+print("[GOAT v5.1] Initializing")
 
 local character
 repeat task.wait(0.1); character = player.Character until character
@@ -99,10 +101,10 @@ character:WaitForChild("Humanoid", 10)
 local playerGui = player:WaitForChild("PlayerGui", 15)
 
 local ENTRY_TIME = os.clock() - ENTRY_START
-print(string.format("[GOAT v5.0] Entry time: %.2fs", ENTRY_TIME))
+print(string.format("[GOAT v5.1] Entry time: %.2fs", ENTRY_TIME))
 
 -- ═══════════════════════════════════════════════════════════
---  [3] الإشعار
+--  [4] الإشعار
 -- ═══════════════════════════════════════════════════════════
 local function showNotification()
     if not playerGui or not playerGui.Parent then return end
@@ -182,7 +184,7 @@ end
 showNotification()
 
 -- ═══════════════════════════════════════════════════════════
---  [4] تحسين الإضاءة (لتسريع الريندر)
+--  [5] تحسين الإضاءة
 -- ═══════════════════════════════════════════════════════════
 local function optimizeLighting()
     pcall(function()
@@ -239,7 +241,7 @@ player.CharacterAdded:Connect(function(newChar)
 end)
 
 -- ═══════════════════════════════════════════════════════════
---  [5] queue_on_teleport
+--  [6] queue_on_teleport
 -- ═══════════════════════════════════════════════════════════
 local function queueForNextServer()
     local payload = ('loadstring(game:HttpGet("%s"))()'):format(SCRIPT_URL)
@@ -280,4 +282,4 @@ pcall(function()
     end)
 end)
 
-print("[GOAT v5.0] Ready")
+print("[GOAT v5.1] Ready")
