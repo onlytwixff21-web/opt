@@ -1,4 +1,4 @@
-print("[GOAT OPTIMIZER] Starting v6.5 (Smart Loading Screen Remover)...")
+print("[GOAT OPTIMIZER] Starting v7.0 (Perfect Sync)...")
 
 local ENTRY_START = os.clock()
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
@@ -14,14 +14,45 @@ local player
 repeat task.wait(0.1); player = Players.LocalPlayer until player
 
 -- ═══════════════════════════════════════════════════════════
---  [1] إزالة شاشة Roblox الافتراضية
+--  [1] اعتراض الأجزاء الجديدة فوراً (تعبان من أول ثانية)
 -- ═══════════════════════════════════════════════════════════
-pcall(function()
-    ReplicatedFirst:RemoveDefaultLoadingScreen()
+Workspace.DescendantAdded:Connect(function(obj)
+    pcall(function()
+        if obj:IsA("BasePart") then
+            obj.Material = Enum.Material.Plastic
+            obj.CastShadow = false
+            obj.Reflectance = 0
+            obj.MaterialVariant = ""
+        elseif obj:IsA("Decal") or obj:IsA("Texture") then
+            obj.Texture = ""
+        elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
+               or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+            obj.Enabled = false
+        end
+    end)
 end)
 
 -- ═══════════════════════════════════════════════════════════
---  [2] تثبيت اللاعب + طلب الأرضية + إزالة الشاشة بعنف
+--  [2] منع الأنميشن
+-- ═══════════════════════════════════════════════════════════
+task.spawn(function()
+    local char
+    repeat task.wait(0.1); char = player.Character until char
+    local hum = char:WaitForChild("Humanoid", 10)
+    if hum then
+        local animator = hum:FindFirstChildOfClass("Animator")
+        if animator then
+            animator.AnimationPlayed:Connect(function(track)
+                pcall(function() track:Stop(0) end)
+            end)
+        end
+        local animate = char:FindFirstChild("Animate")
+        if animate then animate.Disabled = true end
+    end
+end)
+
+-- ═══════════════════════════════════════════════════════════
+--  [3] الأرضية أولاً + إزالة شاشة التحميل بأمان
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
     local char
@@ -29,44 +60,47 @@ task.spawn(function()
     local hrp = char:WaitForChild("HumanoidRootPart", 10)
     if not hrp then return end
 
-    -- نثبت اللاعب في الهواء لكي لا يسقط في الفراغ
+    -- 1. نثبت اللاعب في السماء لكي لا يسقط
     hrp.Anchored = true
     
-    -- نطلب من اللعبة إرسال الأرضية فقط
+    -- 2. نطلب الأرضية فقط
     pcall(function()
         player:RequestStreamAroundAsync(hrp.Position)
     end)
     
-    -- ننتظر حتى نتأكد أن الأرضية موجودة تحتنا (Raycast)
+    -- 3. ننتظر حتى نتأكد 100% أن الأرضية وصلت (Raycast)
     local t0 = os.clock()
-    while os.clock() - t0 < 10 do
+    local groundFound = false
+    while os.clock() - t0 < 15 do
         local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0))
-        if ray then break end
+        if ray then
+            groundFound = true
+            break
+        end
         task.wait(0.05)
     end
     
-    -- بمجرد وصول الأرضية:
+    -- 4. نفك التثبيت (يمكنك اللعب)
     if hrp and hrp.Parent then
-        hrp.Anchored = false -- نفك التثبيت لتلعب
-        print("[GOAT v6.5] Ground confirmed. Removing Loading Screen...")
+        hrp.Anchored = false
+        print("[GOAT v7.0] Ground confirmed: " .. tostring(groundFound))
     end
 
-    -- إزالة شاشات التحميل (الملصق الذي في صورتك)
+    -- 5. الآن، وبعد أن اصبحنا مستعدين، نحذف شاشة التحميل
     local playerGui = player:FindFirstChild("PlayerGui")
     if playerGui then
         for _, gui in ipairs(playerGui:GetChildren()) do
             if gui:IsA("ScreenGui") or gui:IsA("Frame") then
                 local name = gui.Name:lower()
-                -- البحث عن أي شيء يشبه شاشة التحميل
                 if name:find("load") or name:find("intro") or name:find("splash") or name:find("start") or name:find("title") then
                     pcall(function() gui:Destroy() end)
-                    print("[GOAT v6.5] Destroyed screen: " .. gui.Name)
+                    print("[GOAT v7.0] Destroyed loading screen: " .. gui.Name)
                 end
             end
         end
     end
 
-    -- مراقبة مستمرة لأي شاشة تحميل تحاول الظهور
+    -- 6. مراقبة مستمرة لأي شاشة تحميل أخرى
     task.spawn(function()
         while true do
             task.wait(0.1)
@@ -84,79 +118,34 @@ task.spawn(function()
     end)
 end)
 
--- ═══════════════════════════════════════════════════════════
---  [3] منع الأنميشن والصور (لأنها تسبب تقطيع)
--- ═══════════════════════════════════════════════════════════
-task.spawn(function()
-    local char
-    repeat task.wait(0.1); char = player.Character until char
-    local hum = char:WaitForChild("Humanoid", 10)
-    
-    if hum then
-        local animator = hum:FindFirstChildOfClass("Animator")
-        if animator then
-            animator.AnimationPlayed:Connect(function(track)
-                pcall(function() track:Stop(0) end)
-            end)
-        end
-        local animate = char:FindFirstChild("Animate")
-        if animate then animate.Disabled = true end
-    end
-
-    Workspace.DescendantAdded:Connect(function(obj)
-        task.defer(function()
-            pcall(function()
-                if obj:IsA("Decal") or obj:IsA("Texture") then
-                    obj.Texture = ""
-                elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
-                       or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
-                    obj.Enabled = false
-                end
-            end)
-        end)
-    end)
-end)
-
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-if _G.__GOAT_V65_RUNNING then return end
-_G.__GOAT_V65_RUNNING = true
+if _G.__GOAT_V70_RUNNING then return end
+_G.__GOAT_V70_RUNNING = true
 
 -- ═══════════════════════════════════════════════════════════
---  [4] المعالجة الخلفية (بطيئة جداً ولا تسبب أي تقطيع)
+--  [4] معالجة الأجزاء الموجودة مسبقاً (شوية شوية)
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
-    task.wait(5) -- نعطي وقت للعبة لتستقر وأنت تلعب
+    task.wait(3)
 
     local char = player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
     local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 150)
-    local validParts = {}
     
-    for _, p in ipairs(parts) do
-        if p:IsA("BasePart") then
-            local pos = p.Position
-            if math.abs(pos.X) < 5000 and math.abs(pos.Y) < 5000 and math.abs(pos.Z) < 5000 then
-                table.insert(validParts, p)
-            end
-        end
-    end
-
-    local totalParts = #validParts
-    print(string.format("[GOAT v6.5] Processing %d parts in background", totalParts))
-    
-    if totalParts == 0 then return end
-
-    for i = 1, totalParts do
+    for i, p in ipairs(parts) do
         pcall(function()
-            validParts[i].Material        = Enum.Material.Plastic
-            validParts[i].CastShadow      = false
-            validParts[i].Reflectance     = 0
-            validParts[i].MaterialVariant = ""
+            if p:IsA("BasePart") then
+                p.Material        = Enum.Material.Plastic
+                p.CastShadow      = false
+                p.Reflectance     = 0
+                p.MaterialVariant = ""
+            end
         end)
         
+        -- كل 5 أجزاء نأخذ نفساً
         if i % 5 == 0 then
             RunService.Heartbeat:Wait()
             task.wait(0.05)
@@ -165,7 +154,7 @@ task.spawn(function()
 end)
 
 -- ═══════════════════════════════════════════════════════════
---  [5] الإشعار الخاص بك
+--  [5] الإشعار
 -- ═══════════════════════════════════════════════════════════
 local playerGui = player:WaitForChild("PlayerGui", 15)
 local ENTRY_TIME = os.clock() - ENTRY_START
@@ -270,29 +259,10 @@ local function optimizeLighting()
     end
 end
 
-local function killAnimations(char)
-    char = char or player.Character
-    if not char then return end
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hum then return end
-    local animator = hum:FindFirstChildOfClass("Animator")
-    if animator then
-        pcall(function()
-            for _, t in ipairs(animator:GetPlayingAnimationTracks()) do
-                t:Stop(0)
-            end
-        end)
-    end
-    local animate = char:FindFirstChild("Animate")
-    if animate then pcall(function() animate.Disabled = true end) end
-end
-
 task.spawn(function() pcall(optimizeLighting) end)
-task.spawn(function() pcall(killAnimations) end)
 
 player.CharacterAdded:Connect(function(newChar)
     task.wait(1.5)
-    pcall(function() killAnimations(newChar) end)
     local hum = newChar:FindFirstChildOfClass("Humanoid")
     if hum then
         local animator = hum:FindFirstChildOfClass("Animator")
@@ -338,4 +308,4 @@ pcall(function()
     end)
 end)
 
-print("[GOAT v6.5] Ready")
+print("[GOAT v7.0] Ready")
