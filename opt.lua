@@ -1,4 +1,4 @@
-print("[GOAT OPTIMIZER] Starting v6.2 (Play-First System)...")
+print("[GOAT OPTIMIZER] Starting v6.5 (Smart Loading Screen Remover)...")
 
 local ENTRY_START = os.clock()
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
@@ -14,15 +14,14 @@ local player
 repeat task.wait(0.1); player = Players.LocalPlayer until player
 
 -- ═══════════════════════════════════════════════════════════
---  [1] إزالة شاشة التحميل فوراً (للدخول المباشر)
+--  [1] إزالة شاشة Roblox الافتراضية
 -- ═══════════════════════════════════════════════════════════
 pcall(function()
     ReplicatedFirst:RemoveDefaultLoadingScreen()
-    print("[GOAT v6.2] Loading screen removed")
 end)
 
 -- ═══════════════════════════════════════════════════════════
---  [2] طلب الأرضية فقط والسماح بالحركة فوراً
+--  [2] تثبيت اللاعب + طلب الأرضية + إزالة الشاشة بعنف
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
     local char
@@ -30,31 +29,63 @@ task.spawn(function()
     local hrp = char:WaitForChild("HumanoidRootPart", 10)
     if not hrp then return end
 
-    -- تثبيت مؤقت لمنع السقوط في الفراغ
+    -- نثبت اللاعب في الهواء لكي لا يسقط في الفراغ
     hrp.Anchored = true
     
-    -- نطلب من السيرفر إرسال الأرضية تحتنا فقط
+    -- نطلب من اللعبة إرسال الأرضية فقط
     pcall(function()
         player:RequestStreamAroundAsync(hrp.Position)
     end)
     
-    -- ننتظر حتى تظهر الأرضية (نصف ثانية كحد أقصى)
+    -- ننتظر حتى نتأكد أن الأرضية موجودة تحتنا (Raycast)
     local t0 = os.clock()
-    while os.clock() - t0 < 2 do
+    while os.clock() - t0 < 10 do
         local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0))
         if ray then break end
         task.wait(0.05)
     end
     
-    -- بمجرد رؤية الأرضية، نفك التثبيت فوراً لتتمكن من اللعب!
+    -- بمجرد وصول الأرضية:
     if hrp and hrp.Parent then
-        hrp.Anchored = false
-        print("[GOAT v6.2] Ground received, YOU CAN PLAY NOW")
+        hrp.Anchored = false -- نفك التثبيت لتلعب
+        print("[GOAT v6.5] Ground confirmed. Removing Loading Screen...")
     end
+
+    -- إزالة شاشات التحميل (الملصق الذي في صورتك)
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if playerGui then
+        for _, gui in ipairs(playerGui:GetChildren()) do
+            if gui:IsA("ScreenGui") or gui:IsA("Frame") then
+                local name = gui.Name:lower()
+                -- البحث عن أي شيء يشبه شاشة التحميل
+                if name:find("load") or name:find("intro") or name:find("splash") or name:find("start") or name:find("title") then
+                    pcall(function() gui:Destroy() end)
+                    print("[GOAT v6.5] Destroyed screen: " .. gui.Name)
+                end
+            end
+        end
+    end
+
+    -- مراقبة مستمرة لأي شاشة تحميل تحاول الظهور
+    task.spawn(function()
+        while true do
+            task.wait(0.1)
+            if playerGui then
+                for _, gui in ipairs(playerGui:GetChildren()) do
+                    if gui:IsA("ScreenGui") or gui:IsA("Frame") then
+                        local name = gui.Name:lower()
+                        if name:find("load") or name:find("intro") or name:find("splash") or name:find("start") or name:find("title") then
+                            pcall(function() gui:Destroy() end)
+                        end
+                    end
+                end
+            end
+        end
+    end)
 end)
 
 -- ═══════════════════════════════════════════════════════════
---  [3] منع الأنميشن والصور فوراً (لأنها تسحب أداء)
+--  [3] منع الأنميشن والصور (لأنها تسبب تقطيع)
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
     local char
@@ -88,25 +119,22 @@ end)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-if _G.__GOAT_V62_RUNNING then return end
-_G.__GOAT_V62_RUNNING = true
+if _G.__GOAT_V65_RUNNING then return end
+_G.__GOAT_V65_RUNNING = true
 
 -- ═══════════════════════════════════════════════════════════
---  [4] نظام الـ 10 مجموعات في الخلفية (لا يمنعك من اللعب)
+--  [4] المعالجة الخلفية (بطيئة جداً ولا تسبب أي تقطيع)
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
-    -- ننتظر 3 ثواني كاملة لضمان أنك بدأت اللعب بالفعل ولا يوجد أي ضغط
-    task.wait(3)
+    task.wait(5) -- نعطي وقت للعبة لتستقر وأنت تلعب
 
     local char = player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
-    -- نأخذ الأجزاء القريبة منك
     local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 150)
-    local spawnPos = hrp.Position
-
     local validParts = {}
+    
     for _, p in ipairs(parts) do
         if p:IsA("BasePart") then
             local pos = p.Position
@@ -116,47 +144,28 @@ task.spawn(function()
         end
     end
 
-    -- ترتيب: الأرضية أولاً، ثم الأقرب
-    table.sort(validParts, function(a, b)
-        local aIsGround = (a.Position.Y < spawnPos.Y - 2)
-        local bIsGround = (b.Position.Y < spawnPos.Y - 2)
-        if aIsGround and not bIsGround then return true end
-        if bIsGround and not aIsGround then return false end
-        return (a.Position - spawnPos).Magnitude < (b.Position - spawnPos).Magnitude
-    end)
-
     local totalParts = #validParts
-    print(string.format("[GOAT v6.2] Background task: %d parts found", totalParts))
+    print(string.format("[GOAT v6.5] Processing %d parts in background", totalParts))
     
     if totalParts == 0 then return end
 
-    local batchSize = math.ceil(totalParts / 10)
-
-    local function optimizePart(p)
-        pcall(function()
-            p.Material        = Enum.Material.Plastic
-            p.CastShadow      = false
-            p.Reflectance     = 0
-            p.MaterialVariant = ""
-        end)
-    end
-
-    -- معالجة الأجزاء ببطء شديد (كل 0.5 ثانية نعالج 10 أجزاء فقط)
     for i = 1, totalParts do
-        optimizePart(validParts[i])
+        pcall(function()
+            validParts[i].Material        = Enum.Material.Plastic
+            validParts[i].CastShadow      = false
+            validParts[i].Reflectance     = 0
+            validParts[i].MaterialVariant = ""
+        end)
         
-        -- ننتظر كل 10 أجزاء لضمان عدم التقطيع
-        if i % 10 == 0 then
+        if i % 5 == 0 then
             RunService.Heartbeat:Wait()
-            task.wait(0.1) -- راحة 0.1 ثانية
+            task.wait(0.05)
         end
     end
-    
-    print("[GOAT v6.2] Background processing complete")
 end)
 
 -- ═══════════════════════════════════════════════════════════
---  [5] الإشعار
+--  [5] الإشعار الخاص بك
 -- ═══════════════════════════════════════════════════════════
 local playerGui = player:WaitForChild("PlayerGui", 15)
 local ENTRY_TIME = os.clock() - ENTRY_START
@@ -239,7 +248,7 @@ end
 showNotification()
 
 -- ═══════════════════════════════════════════════════════════
---  [6] تحسين الإضاءة + الأنميشن
+--  [6] تحسين الإضاءة
 -- ═══════════════════════════════════════════════════════════
 local function optimizeLighting()
     pcall(function()
@@ -329,4 +338,4 @@ pcall(function()
     end)
 end)
 
-print("[GOAT v6.2] Ready")
+print("[GOAT v6.5] Ready")
