@@ -3,6 +3,7 @@ local Lighting     = game:GetService("Lighting")
 local Workspace    = game:GetService("Workspace")
 local RunService   = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
 
@@ -11,12 +12,42 @@ print("[GOAT OPTIMIZER] Script Started!")
 local player
 repeat task.wait(0.1); player = Players.LocalPlayer until player
 
+-- 1. منع الفراغ
 pcall(function()
     if Workspace.StreamingEnabled then
         Workspace.StreamingEnabled = false
     end
 end)
 
+-- 2. حذف ملصق اللعبة فوراً (هنا السر)
+pcall(function()
+    ReplicatedFirst:RemoveDefaultLoadingScreen()
+end)
+
+local playerGui = player:FindFirstChild("PlayerGui")
+if playerGui then
+    for _, gui in ipairs(playerGui:GetChildren()) do
+        if gui:IsA("ScreenGui") then
+            pcall(function() gui:Destroy() end)
+        end
+    end
+end
+-- مراقبة مستمرة لأي ملصق يظهر لاحقاً
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        local pg = player:FindFirstChild("PlayerGui")
+        if pg then
+            for _, gui in ipairs(pg:GetChildren()) do
+                if gui:IsA("ScreenGui") and (gui.Name:lower():find("load") or gui.Name:lower():find("intro")) then
+                    pcall(function() gui:Destroy() end)
+                end
+            end
+        end
+    end
+end)
+
+-- 3. اعتراض البارتات (بطاطا)
 Workspace.DescendantAdded:Connect(function(obj)
     task.defer(function()
         pcall(function()
@@ -35,6 +66,7 @@ Workspace.DescendantAdded:Connect(function(obj)
     end)
 end)
 
+-- 4. طلب الأرضية والسماح باللعب
 task.spawn(function()
     local char
     repeat task.wait(0.1); char = player.Character until char
@@ -47,7 +79,6 @@ task.spawn(function()
         player:RequestStreamAroundAsync(hrp.Position)
     end)
     
-    -- ننتظر حتى تصل الأرضية (هنا يحدث الانتظار)
     local t0 = os.clock()
     while os.clock() - t0 < 10 do
         local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0))
@@ -58,20 +89,11 @@ task.spawn(function()
     if hrp and hrp.Parent then
         hrp.Anchored = false
     end
-
-    -- الآن وقد وصلت الأرضية، نحذف الملصق (بدون شاشة سوداء)
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if playerGui then
-        for _, gui in ipairs(playerGui:GetChildren()) do
-            if gui:IsA("ScreenGui") then
-                pcall(function() gui:Destroy() end)
-            end
-        end
-    end
     
     print("[GOAT OPTIMIZER] You can play now!")
 end)
 
+-- 5. إيقاف الأنميشن
 task.spawn(function()
     local char
     repeat task.wait(0.1); char = player.Character until char
@@ -94,16 +116,14 @@ if not game:IsLoaded() then game.Loaded:Wait() end
 if _G.__OPTIMIZER_RUNNING then return end
 _G.__OPTIMIZER_RUNNING = true
 
--- تحميل كل البارتات القريبة دفعة واحدة (بدون تقسيم)
+-- 6. تحميل البارتات (بدون تقسيم)
 task.spawn(function()
     task.wait(1)
-
     local char = player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
     local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 150)
-    
     for i, p in ipairs(parts) do
         pcall(function()
             if p:IsA("BasePart") then
@@ -114,14 +134,12 @@ task.spawn(function()
                 p.Transparency    = 0
             end
         end)
-        
-        if i % 10 == 0 then
-            RunService.Heartbeat:Wait()
-        end
+        if i % 10 == 0 then RunService.Heartbeat:Wait() end
     end
     print("[GOAT OPTIMIZER] All systems ready!")
 end)
 
+-- 7. تحسين الإضاءة
 local function optimizeLighting()
     pcall(function()
         Lighting.GlobalShadows            = false
@@ -141,14 +159,13 @@ local function optimizeLighting()
         end
     end
 end
-
 task.spawn(function() pcall(optimizeLighting) end)
 
-local playerGui = player:WaitForChild("PlayerGui", 15)
-
+-- 8. الإشعار
+local playerGuiNotif = player:WaitForChild("PlayerGui", 15)
 local function showNotification()
-    if not playerGui or not playerGui.Parent then return end
-    local old = playerGui:FindFirstChild("GoatOptimizerNotif")
+    if not playerGuiNotif or not playerGuiNotif.Parent then return end
+    local old = playerGuiNotif:FindFirstChild("GoatOptimizerNotif")
     if old then pcall(function() old:Destroy() end) end
 
     local ScreenGui = Instance.new("ScreenGui")
@@ -156,7 +173,7 @@ local function showNotification()
     ScreenGui.ResetOnSpawn = false
     ScreenGui.IgnoreGuiInset = true
     ScreenGui.DisplayOrder = 999999
-    ScreenGui.Parent = playerGui
+    ScreenGui.Parent = playerGuiNotif
 
     local Frame = Instance.new("Frame")
     Frame.Size = UDim2.new(0, 320, 0, 60)
@@ -220,9 +237,9 @@ local function showNotification()
         end
     end)
 end
-
 showNotification()
 
+-- 9. Respawn
 player.CharacterAdded:Connect(function(newChar)
     task.wait(0.3)
     local humanoid = newChar:FindFirstChildOfClass("Humanoid")
@@ -236,6 +253,7 @@ player.CharacterAdded:Connect(function(newChar)
     end
 end)
 
+-- 10. queue_on_teleport
 local function queueForNextServer()
     local payload = ('loadstring(game:HttpGet("%s"))()'):format(SCRIPT_URL)
     if type(queue_on_teleport) == "function" then
