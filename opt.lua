@@ -1,4 +1,4 @@
-print("[GOAT OPTIMIZER] Starting v6.1 (Smart Flow)...")
+print("[GOAT OPTIMIZER] Starting v6.2 (Play-First System)...")
 
 local ENTRY_START = os.clock()
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
@@ -18,7 +18,7 @@ repeat task.wait(0.1); player = Players.LocalPlayer until player
 -- ═══════════════════════════════════════════════════════════
 pcall(function()
     ReplicatedFirst:RemoveDefaultLoadingScreen()
-    print("[GOAT v6.1] Loading screen removed")
+    print("[GOAT v6.2] Loading screen removed")
 end)
 
 -- ═══════════════════════════════════════════════════════════
@@ -30,7 +30,7 @@ task.spawn(function()
     local hrp = char:WaitForChild("HumanoidRootPart", 10)
     if not hrp then return end
 
-    -- تثبيت مؤقت لمنع السقوط
+    -- تثبيت مؤقت لمنع السقوط في الفراغ
     hrp.Anchored = true
     
     -- نطلب من السيرفر إرسال الأرضية تحتنا فقط
@@ -38,7 +38,7 @@ task.spawn(function()
         player:RequestStreamAroundAsync(hrp.Position)
     end)
     
-    -- انتظار بسيط جداً حتى تصل الأرضية (نصف ثانية كحد أقصى)
+    -- ننتظر حتى تظهر الأرضية (نصف ثانية كحد أقصى)
     local t0 = os.clock()
     while os.clock() - t0 < 2 do
         local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0))
@@ -46,15 +46,15 @@ task.spawn(function()
         task.wait(0.05)
     end
     
-    -- فك التثبيت لتبدأ اللعب فوراً
+    -- بمجرد رؤية الأرضية، نفك التثبيت فوراً لتتمكن من اللعب!
     if hrp and hrp.Parent then
         hrp.Anchored = false
-        print("[GOAT v6.1] Ground received, you can play now")
+        print("[GOAT v6.2] Ground received, YOU CAN PLAY NOW")
     end
 end)
 
 -- ═══════════════════════════════════════════════════════════
---  [3] منع الأنميشن والصور فوراً (بدون المساس بالـ Parts)
+--  [3] منع الأنميشن والصور فوراً (لأنها تسحب أداء)
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
     local char
@@ -88,21 +88,21 @@ end)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-if _G.__GOAT_V61_RUNNING then return end
-_G.__GOAT_V61_RUNNING = true
+if _G.__GOAT_V62_RUNNING then return end
+_G.__GOAT_V62_RUNNING = true
 
 -- ═══════════════════════════════════════════════════════════
---  [4] نظام تحميل الـ Parts على مجموعات (في الخلفية أثناء اللعب)
+--  [4] نظام الـ 10 مجموعات في الخلفية (لا يمنعك من اللعب)
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
-    -- ننتظر حتى تظهر الشخصية والأرضية
-    task.wait(2)
+    -- ننتظر 3 ثواني كاملة لضمان أنك بدأت اللعب بالفعل ولا يوجد أي ضغط
+    task.wait(3)
 
     local char = player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
-    -- جلب الأجزاء القريبة فقط (150 stud)
+    -- نأخذ الأجزاء القريبة منك
     local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 150)
     local spawnPos = hrp.Position
 
@@ -126,7 +126,7 @@ task.spawn(function()
     end)
 
     local totalParts = #validParts
-    print(string.format("[GOAT v6.1] Starting background processing: %d parts", totalParts))
+    print(string.format("[GOAT v6.2] Background task: %d parts found", totalParts))
     
     if totalParts == 0 then return end
 
@@ -141,27 +141,18 @@ task.spawn(function()
         end)
     end
 
-    -- معالجة المجموعات العشر في الخلفية
-    for batchNum = 1, 10 do
-        local startIdx = (batchNum - 1) * batchSize + 1
-        local endIdx = math.min(batchNum * batchSize, totalParts)
+    -- معالجة الأجزاء ببطء شديد (كل 0.5 ثانية نعالج 10 أجزاء فقط)
+    for i = 1, totalParts do
+        optimizePart(validParts[i])
         
-        if startIdx <= totalParts then
-            print(string.format("[GOAT v6.1] Background Batch %d/10", batchNum))
-            
-            for i = startIdx, endIdx do
-                optimizePart(validParts[i])
-                if i % 10 == 0 then
-                    RunService.Heartbeat:Wait()
-                end
-            end
-            
-            -- راحة بين كل مجموعة لضمان عدم التجميد
-            task.wait(0.2)
+        -- ننتظر كل 10 أجزاء لضمان عدم التقطيع
+        if i % 10 == 0 then
+            RunService.Heartbeat:Wait()
+            task.wait(0.1) -- راحة 0.1 ثانية
         end
     end
     
-    print("[GOAT v6.1] Background processing complete")
+    print("[GOAT v6.2] Background processing complete")
 end)
 
 -- ═══════════════════════════════════════════════════════════
@@ -338,4 +329,4 @@ pcall(function()
     end)
 end)
 
-print("[GOAT v6.1] Ready")
+print("[GOAT v6.2] Ready")
