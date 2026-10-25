@@ -14,7 +14,6 @@ repeat task.wait(0.1); player = Players.LocalPlayer until player
 pcall(function()
     if Workspace.StreamingEnabled then
         Workspace.StreamingEnabled = false
-        print("[GOAT OPTIMIZER] Streaming disabled (Void prevention)")
     end
 end)
 
@@ -43,7 +42,6 @@ task.spawn(function()
     if not hrp then return end
 
     hrp.Anchored = true
-    print("[GOAT OPTIMIZER] Character anchored, waiting for ground...")
     
     pcall(function()
         player:RequestStreamAroundAsync(hrp.Position)
@@ -58,7 +56,6 @@ task.spawn(function()
     
     if hrp and hrp.Parent then
         hrp.Anchored = false
-        print("[GOAT OPTIMIZER] Ground found! Releasing character.")
     end
 
     local playerGui = player:FindFirstChild("PlayerGui")
@@ -68,7 +65,6 @@ task.spawn(function()
                 local name = gui.Name:lower()
                 if name:find("load") or name:find("intro") or name:find("splash") or name:find("start") or name:find("title") then
                     pcall(function() gui:Destroy() end)
-                    print("[GOAT OPTIMIZER] Removed loading screen: " .. gui.Name)
                 end
             end
         end
@@ -94,22 +90,17 @@ end)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-if _G.__OPTIMIZER_RUNNING then 
-    print("[GOAT OPTIMIZER] Already running.")
-    return 
-end
+if _G.__OPTIMIZER_RUNNING then return end
 _G.__OPTIMIZER_RUNNING = true
 
 task.spawn(function()
     task.wait(2)
-    print("[GOAT OPTIMIZER] Starting background optimization...")
 
     local char = player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
     local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 150)
-    print("[GOAT OPTIMIZER] Processing " .. #parts .. " parts slowly...")
     
     for i, p in ipairs(parts) do
         pcall(function()
@@ -126,7 +117,6 @@ task.spawn(function()
             task.wait(0.1)
         end
     end
-    print("[GOAT OPTIMIZER] Background optimization complete.")
 end)
 
 local function optimizeLighting()
@@ -147,7 +137,6 @@ local function optimizeLighting()
             pcall(function() obj:Destroy() end)
         end
     end
-    print("[GOAT OPTIMIZER] Lighting optimized.")
 end
 
 task.spawn(function() pcall(optimizeLighting) end)
@@ -244,31 +233,48 @@ player.CharacterAdded:Connect(function(newChar)
     end
 end)
 
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        local h = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+        if h and h.Health > 0 then
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -10, 0))
+                if ray then
+                    print("[GOAT OPTIMIZER] You can play now!")
+                    break
+                end
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    task.wait(5)
+    print("[GOAT OPTIMIZER] All systems ready!")
+end)
+
 local function queueForNextServer()
     local payload = ('loadstring(game:HttpGet("%s"))()'):format(SCRIPT_URL)
     if type(queue_on_teleport) == "function" then
         pcall(function() queue_on_teleport(payload) end)
-        print("[GOAT OPTIMIZER] Queued for next server (queue_on_teleport)")
         return
     end
     if type(syn) == "table" and syn.queue_on_teleport then
         pcall(function() syn.queue_on_teleport(payload) end)
-        print("[GOAT OPTIMIZER] Queued for next server (syn)")
         return
     end
     if type(fluxus) == "table" and fluxus.queue_on_teleport then
         pcall(function() fluxus.queue_on_teleport(payload) end)
-        print("[GOAT OPTIMIZER] Queued for next server (fluxus)")
         return
     end
     if type(krnl) == "table" and krnl.queue_on_teleport then
         pcall(function() krnl.queue_on_teleport(payload) end)
-        print("[GOAT OPTIMIZER] Queued for next server (krnl)")
         return
     end
     if type(delta) == "table" and delta.queue_on_teleport then
         pcall(function() delta.queue_on_teleport(payload) end)
-        print("[GOAT OPTIMIZER] Queued for next server (delta)")
     end
 end
 
