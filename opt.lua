@@ -57,29 +57,6 @@ Workspace.DescendantAdded:Connect(function(obj)
     task.defer(function() optimizePart(obj) end)
 end)
 
-local function anchorUntilLoaded()
-    local char = player.Character or player.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart", 10)
-    if not hrp then return end
-
-    local startY = hrp.Position.Y
-    local anchorTime = 0
-
-    task.spawn(function()
-        while anchorTime < 3 do
-            task.wait(0.1)
-            anchorTime = anchorTime + 0.1
-            if not hrp or not hrp.Parent then break end
-            
-            local vel = hrp.AssemblyLinearVelocity
-            if vel.Y < -50 then
-                hrp.AssemblyLinearVelocity = Vector3.new(vel.X, 0, vel.Z)
-                hrp.CFrame = CFrame.new(hrp.Position.X, startY, hrp.Position.Z)
-            end
-        end
-    end)
-end
-
 task.spawn(function()
     local char
     repeat task.wait(0.1); char = player.Character until char
@@ -97,7 +74,6 @@ task.spawn(function()
     for _, p in ipairs(nearbyParts) do
         if p:IsA("BasePart") and p.Name ~= "Baseplate" then
             pcall(function()
-                -- السر هنا: نحولها لبطاطا قبل إخفائها
                 p.Material        = Enum.Material.Plastic
                 p.CastShadow      = false
                 p.Reflectance     = 0
@@ -111,8 +87,21 @@ task.spawn(function()
         end
     end
 
-    task.wait(0.3)
-    
+    local t0 = os.clock()
+    local groundFound = false
+    while os.clock() - t0 < 10 do
+        local rayParams = RaycastParams.new()
+        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+        rayParams.FilterDescendantsInstances = {char}
+        
+        local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0), rayParams)
+        if ray then
+            groundFound = true
+            break
+        end
+        task.wait(0.05)
+    end
+
     if hrp and hrp.Parent then
         hrp.Anchored = false
     end
@@ -196,6 +185,7 @@ end
 
 task.spawn(function() pcall(optimizeLighting) end)
 
+-- 💡 الإشعار الجديد (بدون إيموجي، سموت وأنيق)
 local function showNotification()
     if not playerGui or not playerGui.Parent then return end
     local old = playerGui:FindFirstChild("GoatOptimizerNotif")
@@ -209,78 +199,62 @@ local function showNotification()
     ScreenGui.Parent = playerGui
 
     local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0, 340, 0, 64)
-    Frame.Position = UDim2.new(0.5, -170, 0, -100)
-    Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    Frame.BackgroundTransparency = 0.1
+    Frame.Size = UDim2.new(0, 300, 0, 52)
+    Frame.Position = UDim2.new(0.5, -150, 0, -80)
+    Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    Frame.BackgroundTransparency = 0.15
     Frame.BorderSizePixel = 0
     Frame.Parent = ScreenGui
 
-    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 14)
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
 
     local Stroke = Instance.new("UIStroke")
     Stroke.Color = Color3.fromRGB(255, 255, 255)
-    Stroke.Thickness = 1.5
-    Stroke.Transparency = 0.4
+    Stroke.Thickness = 1
+    Stroke.Transparency = 0.6
     Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     Stroke.Parent = Frame
 
     local Accent = Instance.new("Frame")
-    Accent.Size = UDim2.new(1, -30, 0, 2)
-    Accent.Position = UDim2.new(0.5, 0, 1, -7)
+    Accent.Size = UDim2.new(1, -24, 0, 2)
+    Accent.Position = UDim2.new(0.5, 0, 1, -6)
     Accent.AnchorPoint = Vector2.new(0.5, 1)
     Accent.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     Accent.BorderSizePixel = 0
     Accent.Parent = Frame
     Instance.new("UICorner", Accent).CornerRadius = UDim.new(1, 0)
 
-    local Gradient = Instance.new("UIGradient")
-    Gradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 20)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 30, 30))
-    })
-    Gradient.Rotation = 45
-    Gradient.Parent = Frame
-
-    local Icon = Instance.new("TextLabel")
-    Icon.Size = UDim2.new(0, 40, 0, 40)
-    Icon.Position = UDim2.new(0, 15, 0.5, -20)
-    Icon.BackgroundTransparency = 1
-    Icon.Text = "🐐"
-    Icon.TextSize = 28
-    Icon.Parent = Frame
-
     local Title = Instance.new("TextLabel")
-    Title.Size = UDim2.new(1, -75, 0, 22)
-    Title.Position = UDim2.new(0, 65, 0, 12)
+    Title.Size = UDim2.new(1, -20, 0, 20)
+    Title.Position = UDim2.new(0, 12, 0, 8)
     Title.BackgroundTransparency = 1
     Title.Text = "GOAT OPTIMIZER"
     Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Title.Font = Enum.Font.GothamBlack
-    Title.TextSize = 16
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 14
     Title.TextXAlignment = Enum.TextXAlignment.Left
     Title.Parent = Frame
 
     local Sub = Instance.new("TextLabel")
-    Sub.Size = UDim2.new(1, -75, 0, 14)
-    Sub.Position = UDim2.new(0, 65, 0, 34)
+    Sub.Size = UDim2.new(1, -20, 0, 14)
+    Sub.Position = UDim2.new(0, 12, 0, 28)
     Sub.BackgroundTransparency = 1
-    Sub.Text = "ACTIVATED • ZERO LAG"
-    Sub.TextColor3 = Color3.fromRGB(160, 160, 160)
+    Sub.Text = "ACTIVATED"
+    Sub.TextColor3 = Color3.fromRGB(150, 150, 150)
     Sub.Font = Enum.Font.GothamMedium
     Sub.TextSize = 10
     Sub.TextXAlignment = Enum.TextXAlignment.Left
     Sub.Parent = Frame
 
-    TweenService:Create(Frame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0.5, -170, 0, 20)
+    TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0.5, -150, 0, 20)
     }):Play()
 
     task.delay(2.5, function()
         if Frame and Frame.Parent then
             pcall(function()
-                TweenService:Create(Frame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                    Position = UDim2.new(0.5, -170, 0, -100)
+                TweenService:Create(Frame, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+                    Position = UDim2.new(0.5, -150, 0, -80)
                 }):Play()
             end)
             task.wait(0.35)
