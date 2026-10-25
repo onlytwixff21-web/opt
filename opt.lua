@@ -1,5 +1,3 @@
-print("[GOAT OPTIMIZER] Starting v11.0 (Final Perfect Sync)...")
-
 local Players      = game:GetService("Players")
 local Lighting     = game:GetService("Lighting")
 local Workspace    = game:GetService("Workspace")
@@ -52,7 +50,6 @@ task.spawn(function()
     
     if hrp and hrp.Parent then
         hrp.Anchored = false
-        print("[GOAT v11.0] Ground received. You can play now!")
     end
 
     local playerGui = player:FindFirstChild("PlayerGui")
@@ -87,18 +84,17 @@ end)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-if _G.__GOAT_V110_RUNNING then return end
-_G.__GOAT_V110_RUNNING = true
+if _G.__OPTIMIZER_RUNNING then return end
+_G.__OPTIMIZER_RUNNING = true
 
 task.spawn(function()
-    task.wait(3)
+    task.wait(2)
 
     local char = player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
-    local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 200)
-    print(string.format("[GOAT v11.0] Optimizing %d parts slowly...", #parts))
+    local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 150)
     
     for i, p in ipairs(parts) do
         pcall(function()
@@ -110,12 +106,11 @@ task.spawn(function()
             end
         end)
         
-        if i % 5 == 0 then
+        if i % 3 == 0 then
             RunService.Heartbeat:Wait()
-            task.wait(0.05)
+            task.wait(0.1)
         end
     end
-    print("[GOAT v11.0] Parts optimized.")
 end)
 
 local function optimizeLighting()
@@ -231,5 +226,3 @@ player.CharacterAdded:Connect(function(newChar)
         end
     end
 end)
-
-print("[GOAT v11.0] Ready ✓")
