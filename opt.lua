@@ -24,17 +24,20 @@ end)
 
 local playerGui = player:WaitForChild("PlayerGui", 15)
 
+-- التعديل هنا: حذف ملصق التحميل فقط وترك باقي الواجهات
 local function clearScreens()
     if playerGui then
         for _, gui in ipairs(playerGui:GetChildren()) do
             if gui:IsA("ScreenGui") then
-                pcall(function() gui:Destroy() end)
+                local name = gui.Name:lower()
+                if name:find("load") or name:find("splash") or name:find("intro") or name:find("start") or name:find("title") then
+                    pcall(function() gui:Destroy() end)
+                end
             end
         end
     end
 end
 
--- منع أي بارت جديد من الظهور بجودة عالية
 Workspace.DescendantAdded:Connect(function(obj)
     task.defer(function()
         pcall(function()
@@ -53,7 +56,6 @@ Workspace.DescendantAdded:Connect(function(obj)
     end)
 end)
 
--- دالة تثبيت الشخصية (من الكود القديم) لمنع الفراغ
 local function anchorUntilLoaded()
     local char = player.Character or player.CharacterAdded:Wait()
     local hrp = char:WaitForChild("HumanoidRootPart", 10)
@@ -121,7 +123,6 @@ if not game:IsLoaded() then game.Loaded:Wait() end
 if _G.__OPTIMIZER_RUNNING then return end
 _G.__OPTIMIZER_RUNNING = true
 
--- تحميل البارتات القديمة (من الكود القديم) ببطء لمنع الدرب فريم
 task.spawn(function()
     task.wait(1)
 
