@@ -4,6 +4,7 @@ local Workspace    = game:GetService("Workspace")
 local RunService   = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
+local ContentProvider = game:GetService("ContentProvider")
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
 
@@ -94,6 +95,23 @@ task.spawn(function()
     
     local LOAD_TIME = os.clock() - START_TIME
     print(string.format("[GOAT OPTIMIZER] You can play now! (Load time: %.2fs)", LOAD_TIME))
+
+    -- 💡 إضافة نظام التحميل المسبق (Preloader) هنا
+    task.spawn(function()
+        local textures = {}
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("Decal") or obj:IsA("Texture") then
+                table.insert(textures, obj)
+            end
+        end
+        
+        if #textures > 0 then
+            pcall(function()
+                ContentProvider:PreloadAsync(textures)
+            end)
+            print(string.format("[GOAT OPTIMIZER] Preloaded %d textures!", #textures))
+        end
+    end)
 end)
 
 task.spawn(function()
