@@ -24,7 +24,7 @@ local playerGui = player:WaitForChild("PlayerGui", 15)
 -- 1. إعدادات الحفظ (Settings Save/Load)
 -- ==========================================
 local SETTINGS_FILE = "GoatOptimizer_Settings.txt"
-local CurrentMode = "NORMAL" -- الوضع الافتراضي
+local CurrentMode = "NORMAL"
 
 if writefile and isfile and readfile then
     pcall(function()
@@ -50,7 +50,6 @@ local function createSettingsUI()
     ScreenGui.DisplayOrder = 99999
     ScreenGui.Parent = playerGui
 
-    -- زر الترس (Settings Button)
     local GearBtn = Instance.new("TextButton")
     GearBtn.Name = "GearBtn"
     GearBtn.Size = UDim2.new(0, 40, 0, 40)
@@ -63,7 +62,6 @@ local function createSettingsUI()
     GearBtn.Parent = ScreenGui
     Instance.new("UICorner", GearBtn).CornerRadius = UDim.new(0, 8)
 
-    -- القائمة المنسدلة
     local MenuFrame = Instance.new("Frame")
     MenuFrame.Name = "MenuFrame"
     MenuFrame.Size = UDim2.new(0, 200, 0, 160)
@@ -87,7 +85,6 @@ local function createSettingsUI()
     Title.TextSize = 14
     Title.Parent = MenuFrame
 
-    -- زر NORMAL
     local NormalBtn = Instance.new("TextButton")
     NormalBtn.Size = UDim2.new(0.9, 0, 0, 40)
     NormalBtn.Position = UDim2.new(0.05, 0, 0, 40)
@@ -99,7 +96,6 @@ local function createSettingsUI()
     NormalBtn.Parent = MenuFrame
     Instance.new("UICorner", NormalBtn).CornerRadius = UDim.new(0, 6)
 
-    -- زر EXTREME
     local ExtremeBtn = Instance.new("TextButton")
     ExtremeBtn.Size = UDim2.new(0.9, 0, 0, 40)
     ExtremeBtn.Position = UDim2.new(0.05, 0, 0, 90)
@@ -111,12 +107,10 @@ local function createSettingsUI()
     ExtremeBtn.Parent = MenuFrame
     Instance.new("UICorner", ExtremeBtn).CornerRadius = UDim.new(0, 6)
 
-    -- حدث فتح/إغلاق القائمة
     GearBtn.MouseButton1Click:Connect(function()
         MenuFrame.Visible = not MenuFrame.Visible
     end)
 
-    -- حدث اختيار الوضع
     local function setMode(mode)
         CurrentMode = mode
         NormalBtn.BackgroundColor3 = mode == "NORMAL" and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
@@ -126,7 +120,6 @@ local function createSettingsUI()
             pcall(function() writefile(SETTINGS_FILE, mode) end)
         end
         
-        -- تنبيه المستخدم
         local notif = Instance.new("TextLabel")
         notif.Size = UDim2.new(0, 200, 0, 30)
         notif.Position = UDim2.new(0.5, -100, 0, 50)
@@ -134,14 +127,11 @@ local function createSettingsUI()
         notif.TextColor3 = Color3.fromRGB(255, 255, 255)
         notif.Font = Enum.Font.GothamBold
         notif.TextSize = 14
-        notif.Text = "MODE SET TO: " .. mode
+        notif.Text = "MODE SET TO: " .. mode .. " (RE-EXECUTE)"
         notif.Parent = ScreenGui
         Instance.new("UICorner", notif).CornerRadius = UDim.new(0, 6)
         
-        task.delay(2, function() notif:Destroy() end)
-        task.wait(1)
-        -- إعادة تشغيل السكربت لتطبيق التغييرات (أو طلب من المستخدم إعادة التفعيل)
-        print("[GOAT] Mode changed to: " .. mode .. ". Please re-execute the script to apply.")
+        task.delay(3, function() if notif then notif:Destroy() end end)
     end
 
     NormalBtn.MouseButton1Click:Connect(function() setMode("NORMAL") end)
@@ -153,43 +143,77 @@ createSettingsUI()
 -- ==========================================
 -- 3. دالة اعتراض التحميل لوضع EXTREME
 -- ==========================================
+local allowedWorkspaceParts = {
+    ["GROUND"] = true,
+    ["GROUND_LEFT"] = true,
+    ["GROUND_RIGHT"] = true,
+    ["PART"] = true,
+}
+
 local function enableExtremeMode()
     print("[GOAT EXTREME] Extreme Mode Activated! Intercepting unallowed assets...")
     
-    -- المسارات والأسماء المسموح لها بالتحميل
-    local allowedWorkspaceParts = {
-        ["GROUND"] = true,
-        ["GROUND_LEFT"] = true,
-        ["GROUND_RIGHT"] = true,
-        ["PART"] = true,
-    }
+    -- محاولة استخدام hookfunction (الطريقة الآمنة)
+    if hookfunction then
+        local oldNew
+        oldNew = hookfunction(Instance.new, function(className, parent)
+            local obj = oldNew(className)
+            
+            if parent then
+                local fullPath = obj:GetFullName()
+                local isAllowed = false
+                
+                if fullPath:find("Workspace.Plots") or (parent and parent:GetFullName():find("Workspace.Plots")) then
+                    isAllowed = true
+                end
+                
+                if parent == Workspace and allowedWorkspaceParts[obj.Name] then
+                    isAllowed = true
+                end
+                
+                if not isAllowed and (className == "Part" or className == "MeshPart" or className == "Model") then
+                    print("[Blocked] Prevented loading unallowed part: " .. tostring(obj.Name))
+                    obj:Destroy()
+                    return nil
+                end
+            end
+            return obj
+        end)
+        return
+    end
 
-    local oldInstanceNew = Instance.new
-    Instance.new = function(className, parent)
-        local obj = oldInstanceNew(className)
-        
-        if parent then
-            local fullPath = obj:GetFullName()
-            local isAllowed = false
-            
-            -- 1. السماح بكل شيء داخل Workspace.Plots
-            if fullPath:find("Workspace.Plots") or (parent and parent:GetFullName():find("Workspace.Plots")) then
-                isAllowed = true
+    -- طريقة احتياطية (Fallback) باستخدام hookmetamethod
+    if hookmetamethod then
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            local method = getnamecallmethod()
+            if method == "new" and self == Instance then
+                local className, parent = ...
+                local obj = oldNamecall(self, ...)
+                
+                if parent then
+                    local fullPath = obj:GetFullName()
+                    local isAllowed = false
+                    
+                    if fullPath:find("Workspace.Plots") or (parent and parent:GetFullName():find("Workspace.Plots")) then
+                        isAllowed = true
+                    end
+                    
+                    if parent == Workspace and allowedWorkspaceParts[obj.Name] then
+                        isAllowed = true
+                    end
+                    
+                    if not isAllowed and (className == "Part" or className == "MeshPart" or className == "Model") then
+                        print("[Blocked] Prevented loading unallowed part: " .. tostring(obj.Name))
+                        obj:Destroy()
+                        return nil
+                    end
+                end
+                return obj
             end
-            
-            -- 2. السماح بالبارتات المحددة في Workspace
-            if parent == Workspace and allowedWorkspaceParts[obj.Name] then
-                isAllowed = true
-            end
-            
-            -- إذا كان غير مسموح، يتم منعه
-            if not isAllowed and (className == "Part" or className == "MeshPart" or className == "Model") then
-                print("[Blocked] Prevented loading unallowed part: " .. tostring(obj.Name) .. " in " .. parent:GetFullName())
-                obj:Destroy()
-                return nil
-            end
-        end
-        return obj
+            return oldNamecall(self, ...)
+        end)
+        return
     end
 end
 
@@ -243,7 +267,6 @@ Workspace.DescendantAdded:Connect(function(obj)
     task.defer(function() 
         if CurrentMode == "EXTREME" then
             if obj:IsA("BasePart") or obj:IsA("Model") then
-                 -- في وضع الاكستريم، يتم تجاهل التحسين للبارتات المسموح بها للحفاظ على المظهر
                 local fullPath = obj:GetFullName()
                 if fullPath:find("Workspace.Plots") or allowedWorkspaceParts[obj.Name] then return end
             end
@@ -283,21 +306,6 @@ task.spawn(function()
     
     local LOAD_TIME = os.clock() - START_TIME
     print(string.format("[GOAT OPTIMIZER] You can play now! (Load time: %.2fs)", LOAD_TIME))
-
-    task.spawn(function()
-        local textures = {}
-        for _, obj in ipairs(Workspace:GetDescendants()) do
-            if obj:IsA("Decal") or obj:IsA("Texture") then
-                table.insert(textures, obj)
-            end
-        end
-        
-        if #textures > 0 then
-            pcall(function()
-                ContentProvider:PreloadAsync(textures)
-            end)
-        end
-    end)
 end)
 
 task.spawn(function()
@@ -377,7 +385,7 @@ local function initSynchronizerCache()
 end
 
 task.spawn(function()
-    task.wait(3) -- الانتظار حتى يتم تحميل البيانات
+    task.wait(3)
     local _AD, _MD, _TD
     pcall(function()
         local d = ReplicatedStorage:WaitForChild("Datas", 5)
@@ -405,11 +413,8 @@ task.spawn(function()
         if not t then return end
 
         local totalPets = 0
-        local plotCount = 0
-
         for plotName, channel in pairs(t) do
             if type(plotName) == "string" and plotName:match("%-") then
-                plotCount = plotCount + 1
                 local cacheTable = type(channel) == "table" and channel.CacheTable or nil
                 if cacheTable then
                     local owner = rawget(cacheTable, "Owner")
