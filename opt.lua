@@ -7,6 +7,8 @@ local ReplicatedFirst = game:GetService("ReplicatedFirst")
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
 
+local START_TIME = os.clock()
+
 print("[GOAT OPTIMIZER] Script Started!")
 
 local player
@@ -107,7 +109,9 @@ task.spawn(function()
     end
     
     clearScreens()
-    print("[GOAT OPTIMIZER] You can play now!")
+    
+    local LOAD_TIME = os.clock() - START_TIME
+    print(string.format("[GOAT OPTIMIZER] You can play now! (Load time: %.2fs)", LOAD_TIME))
 
     task.delay(0.5, function()
         for p, origTrans in pairs(hiddenForBoost) do
@@ -185,7 +189,6 @@ end
 
 task.spawn(function() pcall(optimizeLighting) end)
 
--- 💡 الإشعار الجديد (بدون إيموجي، سموت وأنيق)
 local function showNotification()
     if not playerGui or not playerGui.Parent then return end
     local old = playerGui:FindFirstChild("GoatOptimizerNotif")
