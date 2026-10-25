@@ -150,31 +150,39 @@ local allowedWorkspaceParts = {
     ["PART"] = true,
 }
 
+local function isAllowedPart(obj, parent)
+    if not obj then return false end
+    local name = obj.Name
+    local fullPath = parent and parent:GetFullName() or ""
+    
+    -- السماح بكل شيء داخل Workspace.Plots
+    if fullPath:find("Workspace.Plots") or fullPath:find("Workspace.Map") then
+        return true
+    end
+    
+    -- السماح بالأجزاء المحددة في Workspace
+    if parent == Workspace and allowedWorkspaceParts[name] then
+        return true
+    end
+    
+    return false
+end
+
 local function enableExtremeMode()
     print("[GOAT EXTREME] Extreme Mode Activated! Intercepting unallowed assets...")
     
-    -- محاولة استخدام hookfunction (الطريقة الآمنة)
     if hookfunction then
         local oldNew
         oldNew = hookfunction(Instance.new, function(className, parent)
             local obj = oldNew(className)
             
             if parent then
-                local fullPath = obj:GetFullName()
-                local isAllowed = false
-                
-                if fullPath:find("Workspace.Plots") or (parent and parent:GetFullName():find("Workspace.Plots")) then
-                    isAllowed = true
-                end
-                
-                if parent == Workspace and allowedWorkspaceParts[obj.Name] then
-                    isAllowed = true
-                end
-                
-                if not isAllowed and (className == "Part" or className == "MeshPart" or className == "Model") then
-                    print("[Blocked] Prevented loading unallowed part: " .. tostring(obj.Name))
-                    obj:Destroy()
-                    return nil
+                if (className == "Part" or className == "MeshPart" or className == "Model" or className == "WedgePart" or className == "UnionOperation") then
+                    if not isAllowedPart(obj, parent) then
+                        -- print("[Blocked] Prevented loading unallowed part: " .. tostring(obj.Name))
+                        obj:Destroy()
+                        return nil
+                    end
                 end
             end
             return obj
@@ -182,7 +190,6 @@ local function enableExtremeMode()
         return
     end
 
-    -- طريقة احتياطية (Fallback) باستخدام hookmetamethod
     if hookmetamethod then
         local oldNamecall
         oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
@@ -192,21 +199,12 @@ local function enableExtremeMode()
                 local obj = oldNamecall(self, ...)
                 
                 if parent then
-                    local fullPath = obj:GetFullName()
-                    local isAllowed = false
-                    
-                    if fullPath:find("Workspace.Plots") or (parent and parent:GetFullName():find("Workspace.Plots")) then
-                        isAllowed = true
-                    end
-                    
-                    if parent == Workspace and allowedWorkspaceParts[obj.Name] then
-                        isAllowed = true
-                    end
-                    
-                    if not isAllowed and (className == "Part" or className == "MeshPart" or className == "Model") then
-                        print("[Blocked] Prevented loading unallowed part: " .. tostring(obj.Name))
-                        obj:Destroy()
-                        return nil
+                    if (className == "Part" or className == "MeshPart" or className == "Model" or className == "WedgePart" or className == "UnionOperation") then
+                        if not isAllowedPart(obj, parent) then
+                            -- print("[Blocked] Prevented loading unallowed part: " .. tostring(obj.Name))
+                            obj:Destroy()
+                            return nil
+                        end
                     end
                 end
                 return obj
@@ -249,6 +247,13 @@ end
 
 local function optimizePart(obj)
     pcall(function()
+        -- لا نلمس الأرضية أو الـ Plots في وضع الاكستريم للحفاظ على الجرافيكس
+        if CurrentMode == "EXTREME" then
+            if obj:IsA("BasePart") or obj:IsA("Model") then
+                if isAllowedPart(obj, obj.Parent) then return end
+            end
+        end
+
         if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
            or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
             obj.Enabled = false
@@ -265,81 +270,25 @@ end
 
 Workspace.DescendantAdded:Connect(function(obj)
     task.defer(function() 
-        if CurrentMode == "EXTREME" then
-            if obj:IsA("BasePart") or obj:IsA("Model") then
-                local fullPath = obj:GetFullName()
-                if fullPath:find("Workspace.Plots") or allowedWorkspaceParts[obj.Name] then return end
-            end
-        end
         optimizePart(obj) 
     end)
 end)
 
-task.spawn(function()
-    local char
-    repeat task.wait(0.1); char = player.Character until char
-    local hrp = char:WaitForChild("HumanoidRootPart", 10)
-    if not hrp then return end
-
-    hrp.Anchored = true
-    
-    pcall(function()
-        player:RequestStreamAroundAsync(hrp.Position)
-    end)
-    
-    local t0 = os.clock()
-    while os.clock() - t0 < 10 do
-        local rayParams = RaycastParams.new()
-        rayParams.FilterType = Enum.RaycastFilterType.Exclude
-        rayParams.FilterDescendantsInstances = {char}
-        
-        local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0), rayParams)
-        if ray then break end
-        task.wait(0.05)
-    end
-
-    if hrp and hrp.Parent then
-        hrp.Anchored = false
-    end
-    
-    clearScreens()
-    
-    local LOAD_TIME = os.clock() - START_TIME
-    print(string.format("[GOAT OPTIMIZER] You can play now! (Load time: %.2fs)", LOAD_TIME))
-end)
-
-task.spawn(function()
-    local char
-    repeat task.wait(0.1); char = player.Character until char
-    local hum = char:WaitForChild("Humanoid", 10)
-    
-    if hum then
-        local animator = hum:FindFirstChildOfClass("Animator")
-        if animator then
-            animator.AnimationPlayed:Connect(function(track)
-                pcall(function() track:Stop(0) end)
-            end)
-        end
-        local animate = char:FindFirstChild("Animate")
-        if animate then animate.Disabled = true end
-    end
-end)
-
-if not game:IsLoaded() then game.Loaded:Wait() end
-
-if _G.__OPTIMIZER_RUNNING then return end
-_G.__OPTIMIZER_RUNNING = true
-
+-- تطبيق التحسين على الموجود مسبقاً
 task.spawn(function()
     task.wait(1)
     local count = 0
     for _, obj in ipairs(Workspace:GetDescendants()) do
         if obj:IsA("BasePart") then
             pcall(function()
-                obj.Material        = Enum.Material.Plastic
-                obj.CastShadow      = false
-                obj.Reflectance     = 0
-                obj.MaterialVariant = ""
+                if CurrentMode == "EXTREME" and isAllowedPart(obj, obj.Parent) then
+                    -- تخطي الأرضية والـ Plots
+                else
+                    obj.Material        = Enum.Material.Plastic
+                    obj.CastShadow      = false
+                    obj.Reflectance     = 0
+                    obj.MaterialVariant = ""
+                end
             end)
             count = count + 1
             if count % 200 == 0 then 
@@ -350,19 +299,40 @@ task.spawn(function()
     print("[GOAT OPTIMIZER] All systems ready!")
 end)
 
+-- إبقاء الكاميرا مستقرة ومنع الشاشات
+task.spawn(function()
+    local char
+    repeat task.wait(0.1); char = player.Character until char
+    local hrp = char:WaitForChild("HumanoidRootPart", 10)
+    if not hrp then return end
+
+    hrp.Anchored = true
+    pcall(function() player:RequestStreamAroundAsync(hrp.Position) end)
+    
+    local t0 = os.clock()
+    while os.clock() - t0 < 10 do
+        local rayParams = RaycastParams.new()
+        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+        rayParams.FilterDescendantsInstances = {char}
+        local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0), rayParams)
+        if ray then break end
+        task.wait(0.05)
+    end
+
+    if hrp and hrp.Parent then hrp.Anchored = false end
+    clearScreens()
+end)
+
 -- ==========================================
 -- 5. نظام جمع البيانات (sabcom Sync)
 -- ==========================================
 local function initSynchronizerCache()
     local _gu = debug.getupvalues or getupvalues
     if not _gu then return nil end
-    
     local ok, sync = pcall(function()
         return require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Synchronizer"))
     end)
-
     if not (ok and type(sync) == "table") then return nil end
-
     if type(sync.GetAllChannels) == "function" then
         local ok2, ups = pcall(_gu, sync.GetAllChannels)
         if ok2 and type(ups) == "table" then
@@ -372,9 +342,7 @@ local function initSynchronizerCache()
                     for tk, tv in pairs(u) do
                         if type(tk) == "string" and tk:match("%-") and type(tv) == "table" then
                             uuidCount = uuidCount + 1
-                            if uuidCount >= 2 then
-                                return u
-                            end
+                            if uuidCount >= 2 then return u end
                         end
                     end
                 end
@@ -411,7 +379,6 @@ task.spawn(function()
     local function printPlotData()
         local t = initSynchronizerCache()
         if not t then return end
-
         local totalPets = 0
         for plotName, channel in pairs(t) do
             if type(plotName) == "string" and plotName:match("%-") then
@@ -425,9 +392,7 @@ task.spawn(function()
                     elseif type(owner) == "table" and owner.Name then
                         ownerName = owner.Name
                     end
-
                     print(string.format("\n📌 [PLOT: %s] | DUEÑO: %s", plotName, ownerName))
-
                     if animalList and type(animalList) == "table" then
                         for slot, petData in pairs(animalList) do
                             if type(petData) == "table" then
