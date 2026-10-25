@@ -4,6 +4,8 @@ local Workspace    = game:GetService("Workspace")
 local RunService   = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
+local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
+
 local player
 repeat task.wait(0.1); player = Players.LocalPlayer until player
 
@@ -19,6 +21,8 @@ Workspace.DescendantAdded:Connect(function(obj)
             if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
                or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
                 obj.Enabled = false
+            elseif obj:IsA("Decal") or obj:IsA("Texture") then
+                obj.Texture = ""
             elseif obj:IsA("BasePart") then
                 obj.Material        = Enum.Material.Plastic
                 obj.CastShadow      = false
@@ -225,4 +229,41 @@ player.CharacterAdded:Connect(function(newChar)
             end)
         end
     end
+end)
+
+local function queueForNextServer()
+    local payload = ('loadstring(game:HttpGet("%s"))()'):format(SCRIPT_URL)
+    if type(queue_on_teleport) == "function" then
+        pcall(function() queue_on_teleport(payload) end)
+        return
+    end
+    if type(syn) == "table" and syn.queue_on_teleport then
+        pcall(function() syn.queue_on_teleport(payload) end)
+        return
+    end
+    if type(fluxus) == "table" and fluxus.queue_on_teleport then
+        pcall(function() fluxus.queue_on_teleport(payload) end)
+        return
+    end
+    if type(krnl) == "table" and krnl.queue_on_teleport then
+        pcall(function() krnl.queue_on_teleport(payload) end)
+        return
+    end
+    if type(delta) == "table" and delta.queue_on_teleport then
+        pcall(function() delta.queue_on_teleport(payload) end)
+    end
+end
+
+task.spawn(function()
+    task.wait(2)
+    queueForNextServer()
+end)
+
+pcall(function()
+    local LocalPlayer = game:GetService("Players").LocalPlayer
+    LocalPlayer.OnTeleport:Connect(function(State)
+        if State == Enum.TeleportState.Started then
+            queueForNextServer()
+        end
+    end)
 end)
