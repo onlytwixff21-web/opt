@@ -1,4 +1,4 @@
-print("[GOAT OPTIMIZER] Starting v6.0 (10-Batch Smart System)...")
+print("[GOAT OPTIMIZER] Starting v6.1 (Smart Flow)...")
 
 local ENTRY_START = os.clock()
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
@@ -14,15 +14,15 @@ local player
 repeat task.wait(0.1); player = Players.LocalPlayer until player
 
 -- ═══════════════════════════════════════════════════════════
---  [1] إزالة شاشة التحميل (للدخول السريع)
+--  [1] إزالة شاشة التحميل فوراً (للدخول المباشر)
 -- ═══════════════════════════════════════════════════════════
 pcall(function()
     ReplicatedFirst:RemoveDefaultLoadingScreen()
-    print("[GOAT v6.0] Loading screen removed")
+    print("[GOAT v6.1] Loading screen removed")
 end)
 
 -- ═══════════════════════════════════════════════════════════
---  [2] نظام الأرضية أولاً (Anti-Void)
+--  [2] طلب الأرضية فقط والسماح بالحركة فوراً
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
     local char
@@ -30,27 +30,31 @@ task.spawn(function()
     local hrp = char:WaitForChild("HumanoidRootPart", 10)
     if not hrp then return end
 
+    -- تثبيت مؤقت لمنع السقوط
     hrp.Anchored = true
     
+    -- نطلب من السيرفر إرسال الأرضية تحتنا فقط
     pcall(function()
         player:RequestStreamAroundAsync(hrp.Position)
     end)
     
+    -- انتظار بسيط جداً حتى تصل الأرضية (نصف ثانية كحد أقصى)
     local t0 = os.clock()
-    while os.clock() - t0 < 10 do
+    while os.clock() - t0 < 2 do
         local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0))
         if ray then break end
-        task.wait(0.1)
+        task.wait(0.05)
     end
     
+    -- فك التثبيت لتبدأ اللعب فوراً
     if hrp and hrp.Parent then
         hrp.Anchored = false
-        print("[GOAT v6.0] Ground found, character released")
+        print("[GOAT v6.1] Ground received, you can play now")
     end
 end)
 
 -- ═══════════════════════════════════════════════════════════
---  [3] منع الأنميشن والصور (فوراً)
+--  [3] منع الأنميشن والصور فوراً (بدون المساس بالـ Parts)
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
     local char
@@ -84,22 +88,24 @@ end)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-if _G.__GOAT_V60_RUNNING then return end
-_G.__GOAT_V60_RUNNING = true
+if _G.__GOAT_V61_RUNNING then return end
+_G.__GOAT_V61_RUNNING = true
 
 -- ═══════════════════════════════════════════════════════════
---  [4] نظام الـ 10 مجموعات (Smart Batches)
+--  [4] نظام تحميل الـ Parts على مجموعات (في الخلفية أثناء اللعب)
 -- ═══════════════════════════════════════════════════════════
 task.spawn(function()
+    -- ننتظر حتى تظهر الشخصية والأرضية
+    task.wait(2)
+
     local char = player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
-    -- 1. جلب كل الأجزاء القريبة منك (200 stud)
-    local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 200)
+    -- جلب الأجزاء القريبة فقط (150 stud)
+    local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 150)
     local spawnPos = hrp.Position
 
-    -- 2. فلترة الأجزاء الشاذة (التي تسبب أخطاء في الحساب)
     local validParts = {}
     for _, p in ipairs(parts) do
         if p:IsA("BasePart") then
@@ -110,29 +116,22 @@ task.spawn(function()
         end
     end
 
-    -- 3. ترتيب الأجزاء: الأرضية (Y منخفض) أولاً، ثم الأقرب مسافة
+    -- ترتيب: الأرضية أولاً، ثم الأقرب
     table.sort(validParts, function(a, b)
-        -- إذا كان أحدهما أرضية (Y أقل)، نعطيه أولوية
         local aIsGround = (a.Position.Y < spawnPos.Y - 2)
         local bIsGround = (b.Position.Y < spawnPos.Y - 2)
-        
         if aIsGround and not bIsGround then return true end
         if bIsGround and not aIsGround then return false end
-        
-        -- إذا كانا في نفس المستوى، الأقرب أولاً
-        local distA = (a.Position - spawnPos).Magnitude
-        local distB = (b.Position - spawnPos).Magnitude
-        return distA < distB
+        return (a.Position - spawnPos).Magnitude < (b.Position - spawnPos).Magnitude
     end)
 
     local totalParts = #validParts
-    print(string.format("[GOAT v6.0] Found %d nearby parts", totalParts))
+    print(string.format("[GOAT v6.1] Starting background processing: %d parts", totalParts))
     
     if totalParts == 0 then return end
 
-    -- 4. تقسيم الأجزاء إلى 10 مجموعات
     local batchSize = math.ceil(totalParts / 10)
-    
+
     local function optimizePart(p)
         pcall(function()
             p.Material        = Enum.Material.Plastic
@@ -142,31 +141,27 @@ task.spawn(function()
         end)
     end
 
-    -- 5. معالجة المجموعات
+    -- معالجة المجموعات العشر في الخلفية
     for batchNum = 1, 10 do
         local startIdx = (batchNum - 1) * batchSize + 1
         local endIdx = math.min(batchNum * batchSize, totalParts)
         
         if startIdx <= totalParts then
-            print(string.format("[GOAT v6.0] Processing Batch %d/10 (%d parts)", batchNum, endIdx - startIdx + 1))
+            print(string.format("[GOAT v6.1] Background Batch %d/10", batchNum))
             
-            -- نمر على الأجزاء في هذه المجموعة
             for i = startIdx, endIdx do
                 optimizePart(validParts[i])
-                
-                -- تنفس كل 10 أجزاء لمنع التجميد
                 if i % 10 == 0 then
                     RunService.Heartbeat:Wait()
                 end
             end
             
-            -- انتظار بسيط بين كل مجموعة والأخرى (0.05 ثانية)
-            -- هذا يعطي المعالج وقتاً للراحة
-            task.wait(0.05)
+            -- راحة بين كل مجموعة لضمان عدم التجميد
+            task.wait(0.2)
         end
     end
     
-    print("[GOAT v6.0] All batches processed smoothly")
+    print("[GOAT v6.1] Background processing complete")
 end)
 
 -- ═══════════════════════════════════════════════════════════
@@ -343,4 +338,4 @@ pcall(function()
     end)
 end)
 
-print("[GOAT v6.0] Ready")
+print("[GOAT v6.1] Ready")
