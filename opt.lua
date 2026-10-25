@@ -17,7 +17,6 @@ pcall(function()
     end
 end)
 
-local hiddenParts = {}
 Workspace.DescendantAdded:Connect(function(obj)
     task.defer(function()
         pcall(function()
@@ -31,22 +30,11 @@ Workspace.DescendantAdded:Connect(function(obj)
                 obj.CastShadow      = false
                 obj.Reflectance     = 0
                 obj.MaterialVariant = ""
-                
-                local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    local isGround = (obj.Position.Y < hrp.Position.Y - 2) and 
-                                     (hrp.Position - obj.Position).Magnitude < 100
-                    if not isGround then
-                        obj.Transparency = 1
-                        hiddenParts[obj] = true
-                    end
-                end
             end
         end)
     end)
 end)
 
--- إزالة الملصق فوراً وعدم الانتظار
 task.spawn(function()
     local char
     repeat task.wait(0.1); char = player.Character until char
@@ -59,14 +47,19 @@ task.spawn(function()
         player:RequestStreamAroundAsync(hrp.Position)
     end)
     
-    -- انتظار قصير جداً (0.2 ثانية فقط)
-    task.wait(0.2)
+    -- ننتظر حتى تصل الأرضية (هنا يحدث الانتظار)
+    local t0 = os.clock()
+    while os.clock() - t0 < 10 do
+        local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0))
+        if ray then break end
+        task.wait(0.05)
+    end
     
     if hrp and hrp.Parent then
         hrp.Anchored = false
     end
 
-    -- حذف الملصق فوراً (شاشة سوداء مؤقتة)
+    -- الآن وقد وصلت الأرضية، نحذف الملصق (بدون شاشة سوداء)
     local playerGui = player:FindFirstChild("PlayerGui")
     if playerGui then
         for _, gui in ipairs(playerGui:GetChildren()) do
@@ -101,7 +94,7 @@ if not game:IsLoaded() then game.Loaded:Wait() end
 if _G.__OPTIMIZER_RUNNING then return end
 _G.__OPTIMIZER_RUNNING = true
 
--- تحميل البارتات بسرعة (5 مجموعات)
+-- تحميل كل البارتات القريبة دفعة واحدة (بدون تقسيم)
 task.spawn(function()
     task.wait(1)
 
@@ -110,27 +103,20 @@ task.spawn(function()
     if not hrp then return end
 
     local parts = Workspace:GetPartBoundsInRadius(hrp.Position, 150)
-    local totalParts = #parts
-    local batchSize = math.ceil(totalParts / 5)
     
-    for batch = 1, 5 do
-        local startIdx = (batch - 1) * batchSize + 1
-        local endIdx = math.min(batch * batchSize, totalParts)
-        
-        if startIdx <= totalParts then
-            for i = startIdx, endIdx do
-                pcall(function()
-                    if parts[i]:IsA("BasePart") then
-                        parts[i].Material        = Enum.Material.Plastic
-                        parts[i].CastShadow      = false
-                        parts[i].Reflectance     = 0
-                        parts[i].MaterialVariant = ""
-                        parts[i].Transparency    = 0
-                        hiddenParts[parts[i]] = nil
-                    end
-                end)
+    for i, p in ipairs(parts) do
+        pcall(function()
+            if p:IsA("BasePart") then
+                p.Material        = Enum.Material.Plastic
+                p.CastShadow      = false
+                p.Reflectance     = 0
+                p.MaterialVariant = ""
+                p.Transparency    = 0
             end
-            task.wait(0.2) -- استراحة قصيرة جداً
+        end)
+        
+        if i % 10 == 0 then
+            RunService.Heartbeat:Wait()
         end
     end
     print("[GOAT OPTIMIZER] All systems ready!")
