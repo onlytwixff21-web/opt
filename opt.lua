@@ -191,7 +191,6 @@ gearBtn.MouseButton1Click:Connect(function()
     menu.Visible = not menu.Visible
 end)
 
--- ALWAYS REMOVE LOADING SCREEN & STREAMING
 pcall(function()
     if Workspace.StreamingEnabled then Workspace.StreamingEnabled = false end
 end)
@@ -239,7 +238,7 @@ local function isAllowedPart(obj)
         current = current.Parent
     end
 
-    local mapFolder = Workspace:FindFirstChild("Map")
+    local mapFolder = Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("map")
     if mapFolder and obj:IsDescendantOf(mapFolder) then
         local lowerName = obj.Name:lower()
         if ALLOWED_MAP_NAMES[lowerName] then
@@ -299,7 +298,6 @@ Workspace.DescendantAdded:Connect(function(obj)
     task.defer(function() optimizePart(obj) end)
 end)
 
--- ANTI VOID (ALWAYS RUNS IF ENABLED)
 if Settings.AntiVoid then
     task.spawn(function()
         local char
