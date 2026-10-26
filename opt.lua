@@ -150,14 +150,13 @@ local function clearScreens()
     end
 end
 
+-- 💡 التعديل: حذف PART والسماح فقط بـ GROUND و GROUND_LEFT و GROUND_RIGHT
 local ALLOWED_MAP_NAMES = {
     ["ground"] = true,
     ["ground_left"] = true,
-    ["ground_right"] = true,
-    ["part"] = true
+    ["ground_right"] = true
 }
 
--- 💡 التحقق الصارم: إما أن يكون داخل Map بالأسماء المحددة، أو داخل Plots
 local function isAllowedPart(obj)
     local current = obj
     while current and current ~= Workspace do
@@ -192,15 +191,13 @@ end
 
 local function optimizePart(obj)
     pcall(function()
-        -- 1. إذا كان الجزء غير مسموح به في وضع EXTREME، قم بتدميره فوراً
         if currentMode == "EXTREME" and not isAllowedPart(obj) and not isUnderPlayer(obj) then
             if obj:IsA("BasePart") then
-                obj:Destroy() -- 💡 الحل: تدمير الجزء بالكامل لتحرير الذاكرة
+                obj:Destroy()
                 return
             end
         end
 
-        -- 2. تحسينات الجرافيكس للأجزاء المسموحة
         if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
            or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
             obj.Enabled = false
