@@ -157,9 +157,8 @@ local ALLOWED_MAP_NAMES = {
     ["part"] = true
 }
 
--- 💡 التحقق الصارم من المسارات التي حددتها
+-- 💡 التحقق الصارم: إما أن يكون داخل Map بالأسماء المحددة، أو داخل Plots
 local function isAllowedPart(obj)
-    -- 1. إذا كان الجزء داخل مجلد Plots، نسمح به
     local current = obj
     while current and current ~= Workspace do
         if current.Name:lower() == "plots" and current.Parent == Workspace then 
@@ -168,7 +167,6 @@ local function isAllowedPart(obj)
         current = current.Parent
     end
 
-    -- 2. إذا كان الجزء داخل مجلد Map وبالتحديد الأسماء المطلوبة
     local mapFolder = Workspace:FindFirstChild("Map")
     if mapFolder and obj:IsDescendantOf(mapFolder) then
         local lowerName = obj.Name:lower()
@@ -194,16 +192,21 @@ end
 
 local function optimizePart(obj)
     pcall(function()
+        -- 1. إذا كان الجزء غير مسموح به في وضع EXTREME، قم بتدميره فوراً
+        if currentMode == "EXTREME" and not isAllowedPart(obj) and not isUnderPlayer(obj) then
+            if obj:IsA("BasePart") then
+                obj:Destroy() -- 💡 الحل: تدمير الجزء بالكامل لتحرير الذاكرة
+                return
+            end
+        end
+
+        -- 2. تحسينات الجرافيكس للأجزاء المسموحة
         if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
            or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
             obj.Enabled = false
         elseif obj:IsA("Decal") or obj:IsA("Texture") then
             obj.Texture = ""
         elseif obj:IsA("BasePart") then
-            if currentMode == "EXTREME" and not isAllowedPart(obj) and not isUnderPlayer(obj) then
-                obj.Transparency = 1
-                obj.CanCollide = false
-            end
             obj.Material        = Enum.Material.Plastic
             obj.CastShadow      = false
             obj.Reflectance     = 0
