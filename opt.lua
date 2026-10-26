@@ -150,7 +150,6 @@ local function clearScreens()
     end
 end
 
--- 💡 التعديل: حذف PART والسماح فقط بـ GROUND و GROUND_LEFT و GROUND_RIGHT
 local ALLOWED_MAP_NAMES = {
     ["ground"] = true,
     ["ground_left"] = true,
