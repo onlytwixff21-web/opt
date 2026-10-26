@@ -7,7 +7,7 @@ local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ContentProvider = game:GetService("ContentProvider")
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
-local SETTINGS_FILE = "goat_optimizer_mode.txt"
+local SETTINGS_FILE = "goat_optimizer_settings.txt"
 
 local START_TIME = os.clock()
 
@@ -17,119 +17,195 @@ local player
 repeat task.wait(0.1); player = Players.LocalPlayer until player
 local playerGui = player:WaitForChild("PlayerGui", 15)
 
-local function saveMode(mode)
-    if writefile then pcall(function() writefile(SETTINGS_FILE, mode) end) end
-end
+-- ═══════════════════════════════════════════════════════════
+--  نظام حفظ وقراءة الإعدادات
+-- ═══════════════════════════════════════════════════════════
+local Settings = {
+    RemoveDecals = true,
+    RemoveParticles = true,
+    PlasticGraphics = true,
+    LowLighting = true,
+    DestroyUnallowed = true,
+    PreloadTextures = true,
+    AntiVoid = true,
+    KillAnimations = true,
+}
 
-local function loadMode()
-    if isfile and isfile(SETTINGS_FILE) then
-        local success, result = pcall(function() return readfile(SETTINGS_FILE) end)
-        if success and (result == "NORMAL" or result == "EXTREME") then return result end
-    end
-    return nil
-end
-
-local currentMode = loadMode()
-
--- 💡 ترس الإعدادات
-if not currentMode then
-    local setGui = Instance.new("ScreenGui")
-    setGui.Name = "GoatSettings"
-    setGui.ResetOnSpawn = false
-    setGui.DisplayOrder = 99999
-    setGui.Parent = playerGui
-
-    local gearBtn = Instance.new("TextButton")
-    gearBtn.Size = UDim2.new(0, 40, 0, 40)
-    gearBtn.Position = UDim2.new(1, -60, 0.5, -20)
-    gearBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    gearBtn.Text = "⚙️"
-    gearBtn.TextSize = 20
-    gearBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    gearBtn.Parent = setGui
-    Instance.new("UICorner", gearBtn).CornerRadius = UDim.new(1, 0)
-
-    local menu = Instance.new("Frame")
-    menu.Size = UDim2.new(0, 250, 0, 180)
-    menu.Position = UDim2.new(0.5, -125, 0.5, -90)
-    menu.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    menu.Visible = false
-    menu.Parent = setGui
-    Instance.new("UICorner", menu).CornerRadius = UDim.new(0, 10)
-    local stroke = Instance.new("UIStroke", menu)
-    stroke.Color = Color3.fromRGB(255, 255, 255)
-    stroke.Thickness = 1
-    stroke.Transparency = 0.5
-
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 40)
-    title.Text = "OPTIMIZER MODE"
-    title.BackgroundTransparency = 1
-    title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.Font = Enum.Font.GothamBlack
-    title.TextSize = 16
-    title.Parent = menu
-
-    local function createModeBtn(text, yPos)
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, -20, 0, 40)
-        btn.Position = UDim2.new(0, 10, 0, yPos)
-        btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-        btn.Text = text
-        btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 12
-        btn.Parent = menu
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-        return btn
-    end
-
-    local normalBtn = createModeBtn("NORMAL MODE", 50)
-    local extremeBtn = createModeBtn("EXTREME MODE", 100)
-
-    local selectBtn = Instance.new("TextButton")
-    selectBtn.Size = UDim2.new(1, -20, 0, 30)
-    selectBtn.Position = UDim2.new(0, 10, 0, 145)
-    selectBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    selectBtn.Text = "SELECT"
-    selectBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-    selectBtn.Font = Enum.Font.GothamBlack
-    selectBtn.TextSize = 14
-    selectBtn.Parent = menu
-    Instance.new("UICorner", selectBtn).CornerRadius = UDim.new(0, 6)
-
-    local selectedMode = nil
-
-    normalBtn.MouseButton1Click:Connect(function()
-        selectedMode = "NORMAL"
-        normalBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        normalBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-        extremeBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-        extremeBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    end)
-
-    extremeBtn.MouseButton1Click:Connect(function()
-        selectedMode = "EXTREME"
-        extremeBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        extremeBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-        normalBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-        normalBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    end)
-
-    gearBtn.MouseButton1Click:Connect(function() menu.Visible = not menu.Visible end)
-
-    selectBtn.MouseButton1Click:Connect(function()
-        if selectedMode then
-            saveMode(selectedMode)
-            setGui:Destroy()
-            print("[GOAT OPTIMIZER] Mode saved: " .. selectedMode .. ". Please re-execute the script.")
+local function saveSettings()
+    if writefile then
+        local data = ""
+        for k, v in pairs(Settings) do
+            data = data .. k .. "=" .. tostring(v) .. "\n"
         end
-    end)
-    return
+        pcall(function() writefile(SETTINGS_FILE, data) end)
+    end
 end
 
-print("[GOAT OPTIMIZER] Loaded mode: " .. currentMode)
+local function loadSettings()
+    if isfile and isfile(SETTINGS_FILE) then
+        local success, data = pcall(function() return readfile(SETTINGS_FILE) end)
+        if success and data then
+            for line in data:gmatch("[^\n]+") do
+                local key, val = line:match("^(.-)=(.*)$")
+                if key and val then
+                    Settings[key] = (val == "true")
+                end
+            end
+        end
+    end
+end
 
+loadSettings()
+
+-- ═══════════════════════════════════════════════════════════
+--  واجهة الإعدادات الاحترافية
+-- ═══════════════════════════════════════════════════════════
+local setGui = Instance.new("ScreenGui")
+setGui.Name = "GoatSettings"
+setGui.ResetOnSpawn = false
+setGui.DisplayOrder = 99999
+setGui.Parent = playerGui
+
+local gearBtn = Instance.new("TextButton")
+gearBtn.Size = UDim2.new(0, 45, 0, 45)
+gearBtn.Position = UDim2.new(1, -65, 0.5, -22)
+gearBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+gearBtn.Text = "⚙️"
+gearBtn.TextSize = 22
+gearBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+gearBtn.Parent = setGui
+Instance.new("UICorner", gearBtn).CornerRadius = UDim.new(1, 0)
+local gearStroke = Instance.new("UIStroke", gearBtn)
+gearStroke.Color = Color3.fromRGB(255, 255, 255)
+gearStroke.Thickness = 1
+gearStroke.Transparency = 0.5
+
+local menu = Instance.new("Frame")
+menu.Size = UDim2.new(0, 300, 0, 400)
+menu.Position = UDim2.new(0.5, -150, 0.5, -200)
+menu.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+menu.Visible = false
+menu.Parent = setGui
+Instance.new("UICorner", menu).CornerRadius = UDim.new(0, 12)
+local menuStroke = Instance.new("UIStroke", menu)
+menuStroke.Color = Color3.fromRGB(255, 255, 255)
+menuStroke.Thickness = 1
+menuStroke.Transparency = 0.4
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.Text = "GOAT OPTIMIZER SETTINGS"
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 16
+title.Parent = menu
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, -20, 1, -100)
+scroll.Position = UDim2.new(0, 10, 0, 45)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.ScrollBarThickness = 3
+scroll.ScrollBarImageColor3 = Color3.fromRGB(255, 255, 255)
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+scroll.Parent = menu
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 8)
+layout.Parent = scroll
+layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+end)
+
+-- دالة إنشاء صف إعداد
+local function createSettingRow(name, key, desc)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, -10, 0, 45)
+    row.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    row.BorderSizePixel = 0
+    row.Parent = scroll
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -70, 0, 20)
+    label.Position = UDim2.new(0, 12, 0, 5)
+    label.BackgroundTransparency = 1
+    label.Text = name
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 12
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = row
+
+    local descLabel = Instance.new("TextLabel")
+    descLabel.Size = UDim2.new(1, -70, 0, 14)
+    descLabel.Position = UDim2.new(0, 12, 0, 24)
+    descLabel.BackgroundTransparency = 1
+    descLabel.Text = desc or ""
+    descLabel.TextColor3 = Color3.fromRGB(140, 140, 140)
+    descLabel.Font = Enum.Font.GothamMedium
+    descLabel.TextSize = 10
+    descLabel.TextXAlignment = Enum.TextXAlignment.Left
+    descLabel.Parent = row
+
+    local toggle = Instance.new("TextButton")
+    toggle.Size = UDim2.new(0, 44, 0, 24)
+    toggle.Position = UDim2.new(1, -54, 0.5, -12)
+    toggle.BackgroundColor3 = Settings[key] and Color3.fromRGB(80, 200, 120) or Color3.fromRGB(60, 60, 60)
+    toggle.Text = Settings[key] and "ON" or "OFF"
+    toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggle.Font = Enum.Font.GothamBold
+    toggle.TextSize = 10
+    toggle.AutoButtonColor = false
+    toggle.Parent = row
+    Instance.new("UICorner", toggle).CornerRadius = UDim.new(0, 6)
+
+    toggle.MouseButton1Click:Connect(function()
+        Settings[key] = not Settings[key]
+        toggle.BackgroundColor3 = Settings[key] and Color3.fromRGB(80, 200, 120) or Color3.fromRGB(60, 60, 60)
+        toggle.Text = Settings[key] and "ON" or "OFF"
+    end)
+end
+
+-- إضافة الإعدادات
+createSettingRow("Remove Decals/Textures", "RemoveDecals", "إزالة الصور والملصقات")
+createSettingRow("Remove Particles", "RemoveParticles", "إزالة المؤثرات (نار، دخان)")
+createSettingRow("Plastic Graphics", "PlasticGraphics", "تحويل الجرافيكس إلى بطاطا")
+createSettingRow("Low Lighting", "LowLighting", "إلغاء الظلال والتأثيرات")
+createSettingRow("Destroy Unallowed Parts", "DestroyUnallowed", "حذف الأجزاء غير المسموحة")
+createSettingRow("Preload Textures", "PreloadTextures", "تحميل الصور مسبقاً")
+createSettingRow("Anti-Void", "AntiVoid", "منع السقوط في الفراغ")
+createSettingRow("Kill Animations", "KillAnimations", "إيقاف الأنميشن")
+
+-- زر APPLY
+local applyBtn = Instance.new("TextButton")
+applyBtn.Size = UDim2.new(1, -20, 0, 35)
+applyBtn.Position = UDim2.new(0, 10, 1, -45)
+applyBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+applyBtn.Text = "APPLY & SAVE"
+applyBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+applyBtn.Font = Enum.Font.GothamBlack
+applyBtn.TextSize = 14
+applyBtn.Parent = menu
+Instance.new("UICorner", applyBtn).CornerRadius = UDim.new(0, 8)
+
+applyBtn.MouseButton1Click:Connect(function()
+    saveSettings()
+    applyBtn.Text = "SAVED ✓"
+    task.delay(1.5, function()
+        applyBtn.Text = "APPLY & SAVE"
+    end)
+end)
+
+-- فتح/إغلاق القائمة
+gearBtn.MouseButton1Click:Connect(function()
+    menu.Visible = not menu.Visible
+end)
+
+-- ═══════════════════════════════════════════════════════════
+--  تطبيق الإعدادات
+-- ═══════════════════════════════════════════════════════════
 pcall(function()
     if Workspace.StreamingEnabled then Workspace.StreamingEnabled = false end
 end)
@@ -204,19 +280,19 @@ local function optimizePart(obj)
     pcall(function()
         local isPlayer = isPlayerPart(obj)
 
-        if currentMode == "EXTREME" and not isPlayer and not isAllowedPart(obj) and not isUnderPlayer(obj) then
+        if Settings.DestroyUnallowed and not isPlayer and not isAllowedPart(obj) and not isUnderPlayer(obj) then
             if obj:IsA("BasePart") then
                 obj:Destroy()
                 return
             end
         end
 
-        if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
-           or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+        if Settings.RemoveParticles and (obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
+           or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles")) then
             obj.Enabled = false
-        elseif obj:IsA("Decal") or obj:IsA("Texture") then
+        elseif Settings.RemoveDecals and (obj:IsA("Decal") or obj:IsA("Texture")) then
             obj.Texture = ""
-        elseif obj:IsA("BasePart") then
+        elseif Settings.PlasticGraphics and obj:IsA("BasePart") then
             obj.Material        = Enum.Material.Plastic
             obj.CastShadow      = false
             obj.Reflectance     = 0
@@ -229,71 +305,79 @@ Workspace.DescendantAdded:Connect(function(obj)
     task.defer(function() optimizePart(obj) end)
 end)
 
-task.spawn(function()
-    local char
-    repeat task.wait(0.1); char = player.Character until char
-    local hrp = char:WaitForChild("HumanoidRootPart", 10)
-    if not hrp then return end
-
-    hrp.Anchored = true
-    
-    pcall(function()
-        player:RequestStreamAroundAsync(hrp.Position)
-    end)
-    
-    local t0 = os.clock()
-    local groundFound = false
-    while os.clock() - t0 < 10 do
-        local rayParams = RaycastParams.new()
-        rayParams.FilterType = Enum.RaycastFilterType.Exclude
-        rayParams.FilterDescendantsInstances = {char}
-        
-        local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0), rayParams)
-        if ray then
-            groundFound = true
-            break
-        end
-        task.wait(0.05)
-    end
-
-    if hrp and hrp.Parent then hrp.Anchored = false end
-    
-    clearScreens()
-    
-    local LOAD_TIME = os.clock() - START_TIME
-    print(string.format("[GOAT OPTIMIZER] You can play now! (Load time: %.2fs)", LOAD_TIME))
-
-    -- 💡 إضافة خاصية التحميل المسبق (Preload) في كلا الوضعين
+-- Anti-Void
+if Settings.AntiVoid then
     task.spawn(function()
-        local textures = {}
-        for _, obj in ipairs(Workspace:GetDescendants()) do
-            if obj:IsA("Decal") or obj:IsA("Texture") then table.insert(textures, obj) end
+        local char
+        repeat task.wait(0.1); char = player.Character until char
+        local hrp = char:WaitForChild("HumanoidRootPart", 10)
+        if not hrp then return end
+
+        hrp.Anchored = true
+        
+        pcall(function()
+            player:RequestStreamAroundAsync(hrp.Position)
+        end)
+        
+        local t0 = os.clock()
+        local groundFound = false
+        while os.clock() - t0 < 10 do
+            local rayParams = RaycastParams.new()
+            rayParams.FilterType = Enum.RaycastFilterType.Exclude
+            rayParams.FilterDescendantsInstances = {char}
+            
+            local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0), rayParams)
+            if ray then
+                groundFound = true
+                break
+            end
+            task.wait(0.05)
         end
-        if #textures > 0 then
-            pcall(function() ContentProvider:PreloadAsync(textures) end)
-            print(string.format("[GOAT OPTIMIZER] Preloaded %d textures!", #textures))
+
+        if hrp and hrp.Parent then hrp.Anchored = false end
+        
+        clearScreens()
+        
+        local LOAD_TIME = os.clock() - START_TIME
+        print(string.format("[GOAT OPTIMIZER] You can play now! (Load time: %.2fs)", LOAD_TIME))
+
+        if Settings.PreloadTextures then
+            task.spawn(function()
+                local textures = {}
+                for _, obj in ipairs(Workspace:GetDescendants()) do
+                    if obj:IsA("Decal") or obj:IsA("Texture") then table.insert(textures, obj) end
+                end
+                if #textures > 0 then
+                    pcall(function() ContentProvider:PreloadAsync(textures) end)
+                    print(string.format("[GOAT OPTIMIZER] Preloaded %d textures!", #textures))
+                end
+            end)
         end
     end)
-end)
+end
 
-task.spawn(function()
-    local char
-    repeat task.wait(0.1); char = player.Character until char
-    local hum = char:WaitForChild("Humanoid", 10)
-    if hum then
-        local animator = hum:FindFirstChildOfClass("Animator")
-        if animator then
-            animator.AnimationPlayed:Connect(function(track) pcall(function() track:Stop(0) end) end)
+-- Kill Animations
+if Settings.KillAnimations then
+    task.spawn(function()
+        local char
+        repeat task.wait(0.1); char = player.Character until char
+        local hum = char:WaitForChild("Humanoid", 10)
+        if hum then
+            local animator = hum:FindFirstChildOfClass("Animator")
+            if animator then
+                animator.AnimationPlayed:Connect(function(track) pcall(function() track:Stop(0) end) end)
+            end
+            local animate = char:FindFirstChild("Animate")
+            if animate then animate.Disabled = true end
         end
-        local animate = char:FindFirstChild("Animate")
-        if animate then animate.Disabled = true end
-    end
-end)
+    end)
+end
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 if _G.__OPTIMIZER_RUNNING then return end
 _G.__OPTIMIZER_RUNNING = true
 
+-- تحسين الأجزاء الموجودة مسبقاً
 task.spawn(function()
     task.wait(1)
 
@@ -308,107 +392,33 @@ task.spawn(function()
     print("[GOAT OPTIMIZER] All systems ready!")
 end)
 
-local function optimizeLighting()
-    pcall(function()
-        Lighting.GlobalShadows            = false
-        Lighting.Brightness               = 1.5
-        Lighting.FogEnd                   = 9e9
-        Lighting.FogStart                 = 0
-        Lighting.EnvironmentDiffuseScale  = 0
-        Lighting.EnvironmentSpecularScale = 0
-    end)
-    for _, obj in ipairs(Lighting:GetChildren()) do
-        if obj:IsA("BloomEffect") or obj:IsA("BlurEffect")
-           or obj:IsA("ColorCorrectionEffect") or obj:IsA("SunRaysEffect")
-           or obj:IsA("DepthOfFieldEffect") then
-            pcall(function() obj.Enabled = false end)
-        elseif obj:IsA("Atmosphere") then
-            pcall(function() obj:Destroy() end)
+-- Low Lighting
+if Settings.LowLighting then
+    local function optimizeLighting()
+        pcall(function()
+            Lighting.GlobalShadows            = false
+            Lighting.Brightness               = 1.5
+            Lighting.FogEnd                   = 9e9
+            Lighting.FogStart                 = 0
+            Lighting.EnvironmentDiffuseScale  = 0
+            Lighting.EnvironmentSpecularScale = 0
+        end)
+        for _, obj in ipairs(Lighting:GetChildren()) do
+            if obj:IsA("BloomEffect") or obj:IsA("BlurEffect")
+               or obj:IsA("ColorCorrectionEffect") or obj:IsA("SunRaysEffect")
+               or obj:IsA("DepthOfFieldEffect") then
+                pcall(function() obj.Enabled = false end)
+            elseif obj:IsA("Atmosphere") then
+                pcall(function() obj:Destroy() end)
+            end
         end
     end
+    task.spawn(function() pcall(optimizeLighting) end)
 end
 
-task.spawn(function() pcall(optimizeLighting) end)
-
-local function showNotification()
-    if not playerGui or not playerGui.Parent then return end
-    local old = playerGui:FindFirstChild("GoatOptimizerNotif")
-    if old then pcall(function() old:Destroy() end) end
-
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "GoatOptimizerNotif"
-    ScreenGui.ResetOnSpawn = false
-    ScreenGui.IgnoreGuiInset = true
-    ScreenGui.DisplayOrder = 999999
-    ScreenGui.Parent = playerGui
-
-    local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0, 300, 0, 52)
-    Frame.Position = UDim2.new(0.5, -150, 0, -80)
-    Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    Frame.BackgroundTransparency = 0.15
-    Frame.BorderSizePixel = 0
-    Frame.Parent = ScreenGui
-
-    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
-
-    local Stroke = Instance.new("UIStroke")
-    Stroke.Color = Color3.fromRGB(255, 255, 255)
-    Stroke.Thickness = 1
-    Stroke.Transparency = 0.6
-    Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    Stroke.Parent = Frame
-
-    local Accent = Instance.new("Frame")
-    Accent.Size = UDim2.new(1, -24, 0, 2)
-    Accent.Position = UDim2.new(0.5, 0, 1, -6)
-    Accent.AnchorPoint = Vector2.new(0.5, 1)
-    Accent.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    Accent.BorderSizePixel = 0
-    Accent.Parent = Frame
-    Instance.new("UICorner", Accent).CornerRadius = UDim.new(1, 0)
-
-    local Title = Instance.new("TextLabel")
-    Title.Size = UDim2.new(1, -20, 0, 20)
-    Title.Position = UDim2.new(0, 12, 0, 8)
-    Title.BackgroundTransparency = 1
-    Title.Text = "GOAT OPTIMIZER"
-    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Title.Font = Enum.Font.GothamBold
-    Title.TextSize = 14
-    Title.TextXAlignment = Enum.TextXAlignment.Left
-    Title.Parent = Frame
-
-    local Sub = Instance.new("TextLabel")
-    Sub.Size = UDim2.new(1, -20, 0, 14)
-    Sub.Position = UDim2.new(0, 12, 0, 28)
-    Sub.BackgroundTransparency = 1
-    Sub.Text = currentMode .. " MODE"
-    Sub.TextColor3 = Color3.fromRGB(150, 150, 150)
-    Sub.Font = Enum.Font.GothamMedium
-    Sub.TextSize = 10
-    Sub.TextXAlignment = Enum.TextXAlignment.Left
-    Sub.Parent = Frame
-
-    TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0.5, -150, 0, 20)
-    }):Play()
-
-    task.delay(2.5, function()
-        if Frame and Frame.Parent then
-            pcall(function()
-                TweenService:Create(Frame, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
-                    Position = UDim2.new(0.5, -150, 0, -80)
-                }):Play()
-            end)
-            task.wait(0.35)
-            if ScreenGui and ScreenGui.Parent then pcall(function() ScreenGui:Destroy() end) end
-        end
-    end)
-end
-
-showNotification()
-
+-- ═══════════════════════════════════════════════════════════
+--  إعادة التطبيق عند Respawn
+-- ═══════════════════════════════════════════════════════════
 player.CharacterAdded:Connect(function(newChar)
     task.wait(0.3)
     local humanoid = newChar:FindFirstChildOfClass("Humanoid")
@@ -422,6 +432,9 @@ player.CharacterAdded:Connect(function(newChar)
     end
 end)
 
+-- ═══════════════════════════════════════════════════════════
+--  queue_on_teleport
+-- ═══════════════════════════════════════════════════════════
 local function queueForNextServer()
     local payload = ('loadstring(game:HttpGet("%s"))()'):format(SCRIPT_URL)
     if type(queue_on_teleport) == "function" then
