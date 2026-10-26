@@ -206,7 +206,7 @@ local function optimizePart(obj)
 
         if currentMode == "EXTREME" and not isPlayer and not isAllowedPart(obj) and not isUnderPlayer(obj) then
             if obj:IsA("BasePart") then
-                obj:Destroy() -- 💡 حذف الأشياء غير المسموحة فقط
+                obj:Destroy()
                 return
             end
         end
@@ -263,6 +263,7 @@ task.spawn(function()
     local LOAD_TIME = os.clock() - START_TIME
     print(string.format("[GOAT OPTIMIZER] You can play now! (Load time: %.2fs)", LOAD_TIME))
 
+    -- 💡 إضافة خاصية التحميل المسبق (Preload) في كلا الوضعين
     task.spawn(function()
         local textures = {}
         for _, obj in ipairs(Workspace:GetDescendants()) do
