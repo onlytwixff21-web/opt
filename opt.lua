@@ -229,6 +229,17 @@ local function isPlayerPart(obj)
     return false
 end
 
+local function isPlotPart(obj)
+    local current = obj
+    while current and current ~= Workspace do
+        if current.Name:lower() == "plots" and current.Parent == Workspace then 
+            return true 
+        end
+        current = current.Parent
+    end
+    return false
+end
+
 local function isAllowedPart(obj)
     local current = obj
     while current and current ~= Workspace do
@@ -264,8 +275,9 @@ end
 local function optimizePart(obj)
     pcall(function()
         local isPlayer = isPlayerPart(obj)
+        local isPlot = isPlotPart(obj)
 
-        if Settings.DestroyUnallowed and not isPlayer and not isAllowedPart(obj) and not isUnderPlayer(obj) then
+        if Settings.DestroyUnallowed and not isPlayer and not isPlot and not isAllowedPart(obj) and not isUnderPlayer(obj) then
             if obj:IsA("BasePart") then
                 obj:Destroy()
                 return
