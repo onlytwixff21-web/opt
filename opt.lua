@@ -17,26 +17,20 @@ local player
 repeat task.wait(0.1); player = Players.LocalPlayer until player
 local playerGui = player:WaitForChild("PlayerGui", 15)
 
--- دالة لحفظ وقراءة الإعدادات
 local function saveMode(mode)
-    if writefile then
-        pcall(function() writefile(SETTINGS_FILE, mode) end)
-    end
+    if writefile then pcall(function() writefile(SETTINGS_FILE, mode) end) end
 end
 
 local function loadMode()
     if isfile and isfile(SETTINGS_FILE) then
         local success, result = pcall(function() return readfile(SETTINGS_FILE) end)
-        if success and (result == "NORMAL" or result == "EXTREME") then
-            return result
-        end
+        if success and (result == "NORMAL" or result == "EXTREME") then return result end
     end
     return nil
 end
 
 local currentMode = loadMode()
 
--- إنشاء واجهة الإعدادات (تظهر فقط إذا لم يتم اختيار وضع بعد)
 if not currentMode then
     local setGui = Instance.new("ScreenGui")
     setGui.Name = "GoatSettings"
@@ -121,9 +115,7 @@ if not currentMode then
         normalBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
     end)
 
-    gearBtn.MouseButton1Click:Connect(function()
-        menu.Visible = not menu.Visible
-    end)
+    gearBtn.MouseButton1Click:Connect(function() menu.Visible = not menu.Visible end)
 
     selectBtn.MouseButton1Click:Connect(function()
         if selectedMode then
@@ -132,21 +124,13 @@ if not currentMode then
             print("[GOAT OPTIMIZER] Mode saved: " .. selectedMode .. ". Please re-execute the script.")
         end
     end)
-
-    -- نوقف باقي السكربت هنا وننتظر المستخدم ليختار الوضع
     return
 end
 
 print("[GOAT OPTIMIZER] Loaded mode: " .. currentMode)
 
--- ==========================================
--- الكود الأساسي (يبدأ بعد اختيار الوضع)
--- ==========================================
-
 pcall(function()
-    if Workspace.StreamingEnabled then
-        Workspace.StreamingEnabled = false
-    end
+    if Workspace.StreamingEnabled then Workspace.StreamingEnabled = false end
 end)
 
 pcall(function()
@@ -170,15 +154,27 @@ local ALLOWED_NAMES = {
     ["GROUND"] = true,
     ["GROUND_LEFT"] = true,
     ["GROUND_RIGHT"] = true,
-    ["PART"] = true,
-    ["Plots"] = true
+    ["PART"] = true
 }
 
 local function isAllowedPart(obj)
     local current = obj
     while current and current ~= Workspace do
         if ALLOWED_NAMES[current.Name] then return true end
+        if current.Name == "Plots" then return true end 
         current = current.Parent
+    end
+    return false
+end
+
+local function isUnderPlayer(obj)
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp and obj:IsA("BasePart") then
+        local dist = (Vector3.new(obj.Position.X, hrp.Position.Y, obj.Position.Z) - hrp.Position).Magnitude
+        if obj.Position.Y < hrp.Position.Y + 5 and dist < 15 then
+            return true
+        end
     end
     return false
 end
@@ -191,8 +187,7 @@ local function optimizePart(obj)
         elseif obj:IsA("Decal") or obj:IsA("Texture") then
             obj.Texture = ""
         elseif obj:IsA("BasePart") then
-            -- إذا كان الوضع EXTREME وكان الجزء غير مسموح، نخفيه
-            if currentMode == "EXTREME" and not isAllowedPart(obj) then
+            if currentMode == "EXTREME" and not isAllowedPart(obj) and not isUnderPlayer(obj) then
                 obj.Transparency = 1
                 obj.CanCollide = false
             end
@@ -235,28 +230,21 @@ task.spawn(function()
         task.wait(0.05)
     end
 
-    if hrp and hrp.Parent then
-        hrp.Anchored = false
-    end
+    if hrp and hrp.Parent then hrp.Anchored = false end
     
     clearScreens()
     
     local LOAD_TIME = os.clock() - START_TIME
     print(string.format("[GOAT OPTIMIZER] You can play now! (Load time: %.2fs)", LOAD_TIME))
 
-    -- تحميل الصور المسبق (في كلا الوضعين)
     task.spawn(function()
         local textures = {}
         for _, obj in ipairs(Workspace:GetDescendants()) do
-            if obj:IsA("Decal") or obj:IsA("Texture") then
-                table.insert(textures, obj)
-            end
+            if obj:IsA("Decal") or obj:IsA("Texture") then table.insert(textures, obj) end
         end
-        
         if #textures > 0 then
-            pcall(function()
-                ContentProvider:PreloadAsync(textures)
-            end)
+            pcall(function() ContentProvider:PreloadAsync(textures) end)
+            print(string.format("[GOAT OPTIMIZER] Preloaded %d textures!", #textures))
         end
     end)
 end)
@@ -265,13 +253,10 @@ task.spawn(function()
     local char
     repeat task.wait(0.1); char = player.Character until char
     local hum = char:WaitForChild("Humanoid", 10)
-    
     if hum then
         local animator = hum:FindFirstChildOfClass("Animator")
         if animator then
-            animator.AnimationPlayed:Connect(function(track)
-                pcall(function() track:Stop(0) end)
-            end)
+            animator.AnimationPlayed:Connect(function(track) pcall(function() track:Stop(0) end) end)
         end
         local animate = char:FindFirstChild("Animate")
         if animate then animate.Disabled = true end
@@ -279,7 +264,6 @@ task.spawn(function()
 end)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
-
 if _G.__OPTIMIZER_RUNNING then return end
 _G.__OPTIMIZER_RUNNING = true
 
@@ -291,9 +275,7 @@ task.spawn(function()
         if obj:IsA("BasePart") then
             optimizePart(obj)
             count = count + 1
-            if count % 200 == 0 then 
-                RunService.Heartbeat:Wait()
-            end
+            if count % 200 == 0 then RunService.Heartbeat:Wait() end
         end
     end
     print("[GOAT OPTIMIZER] All systems ready!")
