@@ -150,7 +150,7 @@ local function clearScreens()
     end
 end
 
--- 💡 التعديل: تحويل الأسماء إلى أحرف صغيرة للمقارنة
+-- 💡 التعديل: التحقق من المسار المباشر (الأب هو Workspace)
 local ALLOWED_NAMES = {
     ["ground"] = true,
     ["ground_left"] = true,
@@ -161,9 +161,15 @@ local ALLOWED_NAMES = {
 local function isAllowedPart(obj)
     local current = obj
     while current and current ~= Workspace do
-        local lowerName = current.Name:lower()
-        if ALLOWED_NAMES[lowerName] then return true end
-        if lowerName == "plots" then return true end 
+        -- إذا كان المجلد الأب هو Plots، نسمح بكل ما بداخله
+        if current.Name:lower() == "plots" then return true end
+        
+        -- نتحقق فقط من الأجزاء التي يكون أبوها المباشر هو Workspace
+        if current.Parent == Workspace then
+            local lowerName = current.Name:lower()
+            if ALLOWED_NAMES[lowerName] then return true end
+        end
+        
         current = current.Parent
     end
     return false
