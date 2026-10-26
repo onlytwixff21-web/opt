@@ -150,18 +150,20 @@ local function clearScreens()
     end
 end
 
+-- 💡 التعديل: تحويل الأسماء إلى أحرف صغيرة للمقارنة
 local ALLOWED_NAMES = {
-    ["GROUND"] = true,
-    ["GROUND_LEFT"] = true,
-    ["GROUND_RIGHT"] = true,
-    ["PART"] = true
+    ["ground"] = true,
+    ["ground_left"] = true,
+    ["ground_right"] = true,
+    ["part"] = true
 }
 
 local function isAllowedPart(obj)
     local current = obj
     while current and current ~= Workspace do
-        if ALLOWED_NAMES[current.Name] then return true end
-        if current.Name == "Plots" then return true end 
+        local lowerName = current.Name:lower()
+        if ALLOWED_NAMES[lowerName] then return true end
+        if lowerName == "plots" then return true end 
         current = current.Parent
     end
     return false
