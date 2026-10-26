@@ -150,28 +150,33 @@ local function clearScreens()
     end
 end
 
--- 💡 التعديل: التحقق من المسار المباشر (الأب هو Workspace)
-local ALLOWED_NAMES = {
+local ALLOWED_MAP_NAMES = {
     ["ground"] = true,
     ["ground_left"] = true,
     ["ground_right"] = true,
     ["part"] = true
 }
 
+-- 💡 التحقق الصارم من المسارات التي حددتها
 local function isAllowedPart(obj)
+    -- 1. إذا كان الجزء داخل مجلد Plots، نسمح به
     local current = obj
     while current and current ~= Workspace do
-        -- إذا كان المجلد الأب هو Plots، نسمح بكل ما بداخله
-        if current.Name:lower() == "plots" then return true end
-        
-        -- نتحقق فقط من الأجزاء التي يكون أبوها المباشر هو Workspace
-        if current.Parent == Workspace then
-            local lowerName = current.Name:lower()
-            if ALLOWED_NAMES[lowerName] then return true end
+        if current.Name:lower() == "plots" and current.Parent == Workspace then 
+            return true 
         end
-        
         current = current.Parent
     end
+
+    -- 2. إذا كان الجزء داخل مجلد Map وبالتحديد الأسماء المطلوبة
+    local mapFolder = Workspace:FindFirstChild("Map")
+    if mapFolder and obj:IsDescendantOf(mapFolder) then
+        local lowerName = obj.Name:lower()
+        if ALLOWED_MAP_NAMES[lowerName] then
+            return true
+        end
+    end
+
     return false
 end
 
