@@ -31,6 +31,7 @@ end
 
 local currentMode = loadMode()
 
+-- 💡 ترس الإعدادات
 if not currentMode then
     local setGui = Instance.new("ScreenGui")
     setGui.Name = "GoatSettings"
@@ -156,6 +157,17 @@ local ALLOWED_MAP_NAMES = {
     ["ground_right"] = true
 }
 
+local function isPlayerPart(obj)
+    local current = obj
+    while current and current ~= Workspace do
+        if current:IsA("Model") and Players:GetPlayerFromCharacter(current) then
+            return true
+        end
+        current = current.Parent
+    end
+    return false
+end
+
 local function isAllowedPart(obj)
     local current = obj
     while current and current ~= Workspace do
@@ -190,9 +202,11 @@ end
 
 local function optimizePart(obj)
     pcall(function()
-        if currentMode == "EXTREME" and not isAllowedPart(obj) and not isUnderPlayer(obj) then
+        local isPlayer = isPlayerPart(obj)
+
+        if currentMode == "EXTREME" and not isPlayer and not isAllowedPart(obj) and not isUnderPlayer(obj) then
             if obj:IsA("BasePart") then
-                obj:Destroy()
+                obj:Destroy() -- 💡 حذف الأشياء غير المسموحة فقط
                 return
             end
         end
