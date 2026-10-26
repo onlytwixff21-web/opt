@@ -260,13 +260,15 @@ local function isAllowedPart(obj)
     return false
 end
 
-local function isUnderPlayer(obj)
-    local char = player.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if hrp and obj:IsA("BasePart") then
-        local dist = (Vector3.new(obj.Position.X, hrp.Position.Y, obj.Position.Z) - hrp.Position).Magnitude
-        if obj.Position.Y < hrp.Position.Y + 5 and dist < 15 then
-            return true
+local function isUnderAnyPlayer(obj)
+    for _, p in ipairs(Players:GetPlayers()) do
+        local char = p.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp and obj:IsA("BasePart") then
+            local dist = (Vector3.new(obj.Position.X, hrp.Position.Y, obj.Position.Z) - hrp.Position).Magnitude
+            if obj.Position.Y < hrp.Position.Y + 10 and dist < 20 then
+                return true
+            end
         end
     end
     return false
@@ -277,7 +279,7 @@ local function optimizePart(obj)
         local isPlayer = isPlayerPart(obj)
         local isPlot = isPlotPart(obj)
 
-        if Settings.DestroyUnallowed and not isPlayer and not isPlot and not isAllowedPart(obj) and not isUnderPlayer(obj) then
+        if Settings.DestroyUnallowed and not isPlayer and not isPlot and not isAllowedPart(obj) and not isUnderAnyPlayer(obj) then
             if obj:IsA("BasePart") then
                 obj:Destroy()
                 return
