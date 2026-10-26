@@ -191,14 +191,14 @@ gearBtn.MouseButton1Click:Connect(function()
     menu.Visible = not menu.Visible
 end)
 
-if Settings.AntiVoid then
-    pcall(function()
-        if Workspace.StreamingEnabled then Workspace.StreamingEnabled = false end
-    end)
-    pcall(function()
-        ReplicatedFirst:RemoveDefaultLoadingScreen()
-    end)
-end
+-- ALWAYS REMOVE LOADING SCREEN & STREAMING
+pcall(function()
+    if Workspace.StreamingEnabled then Workspace.StreamingEnabled = false end
+end)
+
+pcall(function()
+    ReplicatedFirst:RemoveDefaultLoadingScreen()
+end)
 
 local function clearScreens()
     if playerGui then
@@ -299,6 +299,7 @@ Workspace.DescendantAdded:Connect(function(obj)
     task.defer(function() optimizePart(obj) end)
 end)
 
+-- ANTI VOID (ALWAYS RUNS IF ENABLED)
 if Settings.AntiVoid then
     task.spawn(function()
         local char
