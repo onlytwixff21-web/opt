@@ -1,14 +1,13 @@
-local Players      = game:GetService("Players")
-local Lighting     = game:GetService("Lighting")
-local Workspace    = game:GetService("Workspace")
-local RunService   = game:GetService("RunService")
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ContentProvider = game:GetService("ContentProvider")
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/onlytwixff21-web/opt/refs/heads/main/opt.lua"
 local SETTINGS_FILE = "goat_optimizer_settings.txt"
-
 local START_TIME = os.clock()
 
 print("[GOAT OPTIMIZER] Script Started!")
@@ -17,9 +16,6 @@ local player
 repeat task.wait(0.1); player = Players.LocalPlayer until player
 local playerGui = player:WaitForChild("PlayerGui", 15)
 
--- ═══════════════════════════════════════════════════════════
---  نظام حفظ وقراءة الإعدادات
--- ═══════════════════════════════════════════════════════════
 local Settings = {
     RemoveDecals = true,
     RemoveParticles = true,
@@ -29,6 +25,11 @@ local Settings = {
     PreloadTextures = true,
     AntiVoid = true,
     KillAnimations = true,
+    RemoveEmptyFolders = true,
+    DisableCastShadows = true,
+    ForceLowRenderDistance = true,
+    HideOtherPlayers = false,
+    DisableFog = true
 }
 
 local function saveSettings()
@@ -47,7 +48,7 @@ local function loadSettings()
         if success and data then
             for line in data:gmatch("[^\n]+") do
                 local key, val = line:match("^(.-)=(.*)$")
-                if key and val then
+                if key and val and Settings[key] ~= nil then
                     Settings[key] = (val == "true")
                 end
             end
@@ -57,9 +58,6 @@ end
 
 loadSettings()
 
--- ═══════════════════════════════════════════════════════════
---  واجهة الإعدادات الاحترافية
--- ═══════════════════════════════════════════════════════════
 local setGui = Instance.new("ScreenGui")
 setGui.Name = "GoatSettings"
 setGui.ResetOnSpawn = false
@@ -81,8 +79,8 @@ gearStroke.Thickness = 1
 gearStroke.Transparency = 0.5
 
 local menu = Instance.new("Frame")
-menu.Size = UDim2.new(0, 300, 0, 400)
-menu.Position = UDim2.new(0.5, -150, 0.5, -200)
+menu.Size = UDim2.new(0, 320, 0, 450)
+menu.Position = UDim2.new(0.5, -160, 0.5, -225)
 menu.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 menu.Visible = false
 menu.Parent = setGui
@@ -94,11 +92,11 @@ menuStroke.Transparency = 0.4
 
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 40)
-title.Text = "GOAT OPTIMIZER SETTINGS"
+title.Text = "GOAT OPTIMIZER"
 title.BackgroundTransparency = 1
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.Font = Enum.Font.GothamBlack
-title.TextSize = 16
+title.TextSize = 18
 title.Parent = menu
 
 local scroll = Instance.new("ScrollingFrame")
@@ -112,46 +110,34 @@ scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 scroll.Parent = menu
 
 local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 8)
+layout.Padding = UDim.new(0, 6)
 layout.Parent = scroll
 layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
 end)
 
--- دالة إنشاء صف إعداد
-local function createSettingRow(name, key, desc)
+local function createToggle(name, key)
     local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, -10, 0, 45)
+    row.Size = UDim2.new(1, -10, 0, 36)
     row.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     row.BorderSizePixel = 0
     row.Parent = scroll
-    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
 
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -70, 0, 20)
-    label.Position = UDim2.new(0, 12, 0, 5)
+    label.Size = UDim2.new(1, -70, 1, 0)
+    label.Position = UDim2.new(0, 12, 0, 0)
     label.BackgroundTransparency = 1
     label.Text = name
     label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.Font = Enum.Font.GothamBold
+    label.Font = Enum.Font.GothamMedium
     label.TextSize = 12
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.Parent = row
 
-    local descLabel = Instance.new("TextLabel")
-    descLabel.Size = UDim2.new(1, -70, 0, 14)
-    descLabel.Position = UDim2.new(0, 12, 0, 24)
-    descLabel.BackgroundTransparency = 1
-    descLabel.Text = desc or ""
-    descLabel.TextColor3 = Color3.fromRGB(140, 140, 140)
-    descLabel.Font = Enum.Font.GothamMedium
-    descLabel.TextSize = 10
-    descLabel.TextXAlignment = Enum.TextXAlignment.Left
-    descLabel.Parent = row
-
     local toggle = Instance.new("TextButton")
-    toggle.Size = UDim2.new(0, 44, 0, 24)
-    toggle.Position = UDim2.new(1, -54, 0.5, -12)
+    toggle.Size = UDim2.new(0, 44, 0, 22)
+    toggle.Position = UDim2.new(1, -54, 0.5, -11)
     toggle.BackgroundColor3 = Settings[key] and Color3.fromRGB(80, 200, 120) or Color3.fromRGB(60, 60, 60)
     toggle.Text = Settings[key] and "ON" or "OFF"
     toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -159,7 +145,7 @@ local function createSettingRow(name, key, desc)
     toggle.TextSize = 10
     toggle.AutoButtonColor = false
     toggle.Parent = row
-    Instance.new("UICorner", toggle).CornerRadius = UDim.new(0, 6)
+    Instance.new("UICorner", toggle).CornerRadius = UDim.new(0, 4)
 
     toggle.MouseButton1Click:Connect(function()
         Settings[key] = not Settings[key]
@@ -168,17 +154,20 @@ local function createSettingRow(name, key, desc)
     end)
 end
 
--- إضافة الإعدادات
-createSettingRow("Remove Decals/Textures", "RemoveDecals", "إزالة الصور والملصقات")
-createSettingRow("Remove Particles", "RemoveParticles", "إزالة المؤثرات (نار، دخان)")
-createSettingRow("Plastic Graphics", "PlasticGraphics", "تحويل الجرافيكس إلى بطاطا")
-createSettingRow("Low Lighting", "LowLighting", "إلغاء الظلال والتأثيرات")
-createSettingRow("Destroy Unallowed Parts", "DestroyUnallowed", "حذف الأجزاء غير المسموحة")
-createSettingRow("Preload Textures", "PreloadTextures", "تحميل الصور مسبقاً")
-createSettingRow("Anti-Void", "AntiVoid", "منع السقوط في الفراغ")
-createSettingRow("Kill Animations", "KillAnimations", "إيقاف الأنميشن")
+createToggle("Remove Textures/Decals", "RemoveDecals")
+createToggle("Remove Particles", "RemoveParticles")
+createToggle("Plastic Graphics", "PlasticGraphics")
+createToggle("Low Lighting", "LowLighting")
+createToggle("Destroy Unallowed Parts", "DestroyUnallowed")
+createToggle("Preload Textures", "PreloadTextures")
+createToggle("Anti-Void Protection", "AntiVoid")
+createToggle("Kill Animations", "KillAnimations")
+createToggle("Remove Empty Folders", "RemoveEmptyFolders")
+createToggle("Disable Cast Shadows", "DisableCastShadows")
+createToggle("Force Low Render Distance", "ForceLowRenderDistance")
+createToggle("Hide Other Players", "HideOtherPlayers")
+createToggle("Disable Fog", "DisableFog")
 
--- زر APPLY
 local applyBtn = Instance.new("TextButton")
 applyBtn.Size = UDim2.new(1, -20, 0, 35)
 applyBtn.Position = UDim2.new(0, 10, 1, -45)
@@ -198,26 +187,23 @@ applyBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- فتح/إغلاق القائمة
 gearBtn.MouseButton1Click:Connect(function()
     menu.Visible = not menu.Visible
 end)
 
--- ═══════════════════════════════════════════════════════════
---  تطبيق الإعدادات
--- ═══════════════════════════════════════════════════════════
-pcall(function()
-    if Workspace.StreamingEnabled then Workspace.StreamingEnabled = false end
-end)
-
-pcall(function()
-    ReplicatedFirst:RemoveDefaultLoadingScreen()
-end)
+if Settings.AntiVoid then
+    pcall(function()
+        if Workspace.StreamingEnabled then Workspace.StreamingEnabled = false end
+    end)
+    pcall(function()
+        ReplicatedFirst:RemoveDefaultLoadingScreen()
+    end)
+end
 
 local function clearScreens()
     if playerGui then
         for _, gui in ipairs(playerGui:GetChildren()) do
-            if gui:IsA("ScreenGui") and gui.Name ~= "GoatSettings" and gui.Name ~= "GoatOptimizerNotif" then
+            if gui:IsA("ScreenGui") and gui.Name ~= "GoatSettings" then
                 local name = gui.Name:lower()
                 if name:find("load") or name:find("splash") or name:find("intro") or name:find("start") or name:find("title") then
                     pcall(function() gui:Destroy() end)
@@ -293,10 +279,18 @@ local function optimizePart(obj)
         elseif Settings.RemoveDecals and (obj:IsA("Decal") or obj:IsA("Texture")) then
             obj.Texture = ""
         elseif Settings.PlasticGraphics and obj:IsA("BasePart") then
-            obj.Material        = Enum.Material.Plastic
-            obj.CastShadow      = false
-            obj.Reflectance     = 0
+            obj.Material = Enum.Material.Plastic
+            if Settings.DisableCastShadows then
+                obj.CastShadow = false
+            end
+            obj.Reflectance = 0
             obj.MaterialVariant = ""
+        end
+        
+        if Settings.RemoveEmptyFolders and obj:IsA("Folder") then
+            if #obj:GetChildren() == 0 then
+                obj:Destroy()
+            end
         end
     end)
 end
@@ -305,7 +299,6 @@ Workspace.DescendantAdded:Connect(function(obj)
     task.defer(function() optimizePart(obj) end)
 end)
 
--- Anti-Void
 if Settings.AntiVoid then
     task.spawn(function()
         local char
@@ -320,22 +313,17 @@ if Settings.AntiVoid then
         end)
         
         local t0 = os.clock()
-        local groundFound = false
         while os.clock() - t0 < 10 do
             local rayParams = RaycastParams.new()
             rayParams.FilterType = Enum.RaycastFilterType.Exclude
             rayParams.FilterDescendantsInstances = {char}
             
             local ray = Workspace:Raycast(hrp.Position, Vector3.new(0, -50, 0), rayParams)
-            if ray then
-                groundFound = true
-                break
-            end
+            if ray then break end
             task.wait(0.05)
         end
 
         if hrp and hrp.Parent then hrp.Anchored = false end
-        
         clearScreens()
         
         local LOAD_TIME = os.clock() - START_TIME
@@ -356,7 +344,6 @@ if Settings.AntiVoid then
     end)
 end
 
--- Kill Animations
 if Settings.KillAnimations then
     task.spawn(function()
         local char
@@ -377,13 +364,11 @@ if not game:IsLoaded() then game.Loaded:Wait() end
 if _G.__OPTIMIZER_RUNNING then return end
 _G.__OPTIMIZER_RUNNING = true
 
--- تحسين الأجزاء الموجودة مسبقاً
 task.spawn(function()
     task.wait(1)
-
     local count = 0
     for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("BasePart") then
+        if obj:IsA("BasePart") or obj:IsA("Folder") then
             optimizePart(obj)
             count = count + 1
             if count % 200 == 0 then RunService.Heartbeat:Wait() end
@@ -392,16 +377,17 @@ task.spawn(function()
     print("[GOAT OPTIMIZER] All systems ready!")
 end)
 
--- Low Lighting
 if Settings.LowLighting then
     local function optimizeLighting()
         pcall(function()
-            Lighting.GlobalShadows            = false
-            Lighting.Brightness               = 1.5
-            Lighting.FogEnd                   = 9e9
-            Lighting.FogStart                 = 0
-            Lighting.EnvironmentDiffuseScale  = 0
+            Lighting.GlobalShadows = false
+            Lighting.Brightness = 1.5
+            Lighting.EnvironmentDiffuseScale = 0
             Lighting.EnvironmentSpecularScale = 0
+            if Settings.DisableFog then
+                Lighting.FogEnd = 9e9
+                Lighting.FogStart = 0
+            end
         end)
         for _, obj in ipairs(Lighting:GetChildren()) do
             if obj:IsA("BloomEffect") or obj:IsA("BlurEffect")
@@ -416,15 +402,40 @@ if Settings.LowLighting then
     task.spawn(function() pcall(optimizeLighting) end)
 end
 
--- ═══════════════════════════════════════════════════════════
---  إعادة التطبيق عند Respawn
--- ═══════════════════════════════════════════════════════════
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if Settings.HideOtherPlayers then
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= player and p.Character then
+                    for _, part in ipairs(p.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.Transparency = 1
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(2)
+        if Settings.ForceLowRenderDistance then
+            pcall(function()
+                settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level01
+            end)
+        end
+    end
+end)
+
 player.CharacterAdded:Connect(function(newChar)
     task.wait(0.3)
     local humanoid = newChar:FindFirstChildOfClass("Humanoid")
     if humanoid then
         local animator = humanoid:FindFirstChildOfClass("Animator")
-        if animator then
+        if animator and Settings.KillAnimations then
             animator.AnimationPlayed:Connect(function(track)
                 task.defer(function() pcall(function() track:Stop(0) end) end)
             end)
@@ -432,9 +443,6 @@ player.CharacterAdded:Connect(function(newChar)
     end
 end)
 
--- ═══════════════════════════════════════════════════════════
---  queue_on_teleport
--- ═══════════════════════════════════════════════════════════
 local function queueForNextServer()
     local payload = ('loadstring(game:HttpGet("%s"))()'):format(SCRIPT_URL)
     if type(queue_on_teleport) == "function" then
