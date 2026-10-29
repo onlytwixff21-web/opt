@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
@@ -11,6 +12,32 @@ local SETTINGS_FILE = "goat_optimizer_settings.txt"
 local START_TIME = os.clock()
 
 print("[GOAT OPTIMIZER] Script Started!")
+
+-- 💡 التعديل الجوهري: بدء التحميل المسبق فوراً وبشكل متوازي
+task.spawn(function()
+    local preloadStart = os.clock()
+    local assets = {}
+    
+    -- جمع كل الصور من كل مكان
+    local function gatherAssets(parent)
+        for _, obj in ipairs(parent:GetDescendants()) do
+            if obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("Sound") then
+                table.insert(assets, obj)
+            end
+        end
+    end
+    
+    gatherAssets(Workspace)
+    gatherAssets(ReplicatedStorage)
+    gatherAssets(Lighting)
+    
+    if #assets > 0 then
+        pcall(function()
+            ContentProvider:PreloadAsync(assets)
+        end)
+        print(string.format("[GOAT OPTIMIZER] Preloaded %d assets in %.2fs!", #assets, os.clock() - preloadStart))
+    end
+end)
 
 local player
 repeat task.wait(0.1); player = Players.LocalPlayer until player
@@ -341,19 +368,6 @@ if Settings.AntiVoid then
         
         local LOAD_TIME = os.clock() - START_TIME
         print(string.format("[GOAT OPTIMIZER] You can play now! (Load time: %.2fs)", LOAD_TIME))
-
-        if Settings.PreloadTextures then
-            task.spawn(function()
-                local textures = {}
-                for _, obj in ipairs(Workspace:GetDescendants()) do
-                    if obj:IsA("Decal") or obj:IsA("Texture") then table.insert(textures, obj) end
-                end
-                if #textures > 0 then
-                    pcall(function() ContentProvider:PreloadAsync(textures) end)
-                    print(string.format("[GOAT OPTIMIZER] Preloaded %d textures!", #textures))
-                end
-            end)
-        end
     end)
 end
 
