@@ -13,30 +13,32 @@ local START_TIME = os.clock()
 
 print("[GOAT OPTIMIZER] Script Started!")
 
--- 💡 التعديل الجوهري: بدء التحميل المسبق فوراً وبشكل متوازي
 task.spawn(function()
-    local preloadStart = os.clock()
-    local assets = {}
-    
-    -- جمع كل الصور من كل مكان
-    local function gatherAssets(parent)
-        for _, obj in ipairs(parent:GetDescendants()) do
-            if obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("Sound") then
-                table.insert(assets, obj)
+    local function doPreload(label)
+        local preloadStart = os.clock()
+        local assets = {}
+        local function gatherAssets(parent)
+            for _, obj in ipairs(parent:GetDescendants()) do
+                if obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("Sound") then
+                    table.insert(assets, obj)
+                end
             end
+        end
+        gatherAssets(Workspace)
+        gatherAssets(ReplicatedStorage)
+        gatherAssets(Lighting)
+        
+        if #assets > 0 then
+            pcall(function()
+                ContentProvider:PreloadAsync(assets)
+            end)
+            print(string.format("[GOAT OPTIMIZER] %s: Preloaded %d assets in %.2fs!", label, #assets, os.clock() - preloadStart))
         end
     end
     
-    gatherAssets(Workspace)
-    gatherAssets(ReplicatedStorage)
-    gatherAssets(Lighting)
-    
-    if #assets > 0 then
-        pcall(function()
-            ContentProvider:PreloadAsync(assets)
-        end)
-        print(string.format("[GOAT OPTIMIZER] Preloaded %d assets in %.2fs!", #assets, os.clock() - preloadStart))
-    end
+    doPreload("Initial")
+    task.wait(1)
+    doPreload("Post-Load")
 end)
 
 local player
@@ -287,6 +289,12 @@ local function isAllowedPart(obj)
     return false
 end
 
+local function hasProximityPrompt(obj)
+    if obj:IsA("ProximityPrompt") then return true end
+    if obj:FindFirstChildWhichIsA("ProximityPrompt", true) then return true end
+    return false
+end
+
 local function isUnderAnyPlayer(obj)
     for _, p in ipairs(Players:GetPlayers()) do
         local char = p.Character
@@ -305,8 +313,9 @@ local function optimizePart(obj)
     pcall(function()
         local isPlayer = isPlayerPart(obj)
         local isPlot = isPlotPart(obj)
+        local hasPrompt = hasProximityPrompt(obj)
 
-        if Settings.DestroyUnallowed and not isPlayer and not isPlot and not isAllowedPart(obj) and not isUnderAnyPlayer(obj) then
+        if Settings.DestroyUnallowed and not isPlayer and not isPlot and not hasPrompt and not isAllowedPart(obj) and not isUnderAnyPlayer(obj) then
             if obj:IsA("BasePart") then
                 obj:Destroy()
                 return
