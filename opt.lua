@@ -289,9 +289,11 @@ local function isAllowedPart(obj)
     return false
 end
 
-local function hasProximityPrompt(obj)
-    if obj:IsA("ProximityPrompt") then return true end
+local function hasInteractiveUI(obj)
+    if obj:IsA("ProximityPrompt") or obj:IsA("SurfaceGui") or obj:IsA("BillboardGui") then return true end
     if obj:FindFirstChildWhichIsA("ProximityPrompt", true) then return true end
+    if obj:FindFirstChildWhichIsA("SurfaceGui", true) then return true end
+    if obj:FindFirstChildWhichIsA("BillboardGui", true) then return true end
     return false
 end
 
@@ -313,27 +315,31 @@ local function optimizePart(obj)
     pcall(function()
         local isPlayer = isPlayerPart(obj)
         local isPlot = isPlotPart(obj)
-        local hasPrompt = hasProximityPrompt(obj)
+        local hasUI = hasInteractiveUI(obj)
 
-        if Settings.DestroyUnallowed and not isPlayer and not isPlot and not hasPrompt and not isAllowedPart(obj) and not isUnderAnyPlayer(obj) then
+        -- 💡 استثناء الأزرار والواجهات من الحذف
+        if Settings.DestroyUnallowed and not isPlayer and not isPlot and not hasUI and not isAllowedPart(obj) and not isUnderAnyPlayer(obj) then
             if obj:IsA("BasePart") then
                 obj:Destroy()
                 return
             end
         end
 
-        if Settings.RemoveParticles and (obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
-           or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles")) then
-            obj.Enabled = false
-        elseif Settings.RemoveDecals and (obj:IsA("Decal") or obj:IsA("Texture")) then
-            obj.Texture = ""
-        elseif Settings.PlasticGraphics and obj:IsA("BasePart") then
-            obj.Material = Enum.Material.Plastic
-            if Settings.DisableCastShadows then
-                obj.CastShadow = false
+        -- 💡 استثناء الأزرار والواجهات من تغيير الجرافيكس
+        if not hasUI then
+            if Settings.RemoveParticles and (obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
+               or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles")) then
+                obj.Enabled = false
+            elseif Settings.RemoveDecals and (obj:IsA("Decal") or obj:IsA("Texture")) then
+                obj.Texture = ""
+            elseif Settings.PlasticGraphics and obj:IsA("BasePart") then
+                obj.Material = Enum.Material.Plastic
+                if Settings.DisableCastShadows then
+                    obj.CastShadow = false
+                end
+                obj.Reflectance = 0
+                obj.MaterialVariant = ""
             end
-            obj.Reflectance = 0
-            obj.MaterialVariant = ""
         end
         
         if Settings.RemoveEmptyFolders and obj:IsA("Folder") then
