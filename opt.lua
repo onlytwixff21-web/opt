@@ -13,34 +13,6 @@ local START_TIME = os.clock()
 
 print("[GOAT OPTIMIZER] Script Started!")
 
-task.spawn(function()
-    local function doPreload(label)
-        local preloadStart = os.clock()
-        local assets = {}
-        local function gatherAssets(parent)
-            for _, obj in ipairs(parent:GetDescendants()) do
-                if obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("Sound") then
-                    table.insert(assets, obj)
-                end
-            end
-        end
-        gatherAssets(Workspace)
-        gatherAssets(ReplicatedStorage)
-        gatherAssets(Lighting)
-        
-        if #assets > 0 then
-            pcall(function()
-                ContentProvider:PreloadAsync(assets)
-            end)
-            print(string.format("[GOAT OPTIMIZER] %s: Preloaded %d assets in %.2fs!", label, #assets, os.clock() - preloadStart))
-        end
-    end
-    
-    doPreload("Initial")
-    task.wait(1)
-    doPreload("Post-Load")
-end)
-
 local player
 repeat task.wait(0.1); player = Players.LocalPlayer until player
 local playerGui = player:WaitForChild("PlayerGui", 15)
@@ -87,6 +59,62 @@ end
 
 loadSettings()
 
+-- ============================================================
+-- PRELOAD SYSTEM (FIXED)
+-- ============================================================
+local preloadQueue = {}
+local preloadRunning = false
+
+local function addToPreload(obj)
+    if not Settings.PreloadTextures then return end
+    if obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("Sound") then
+        table.insert(preloadQueue, obj)
+        if not preloadRunning then
+            preloadRunning = true
+            task.spawn(function()
+                task.wait(0.5)
+                local start = os.clock()
+                local batch = preloadQueue
+                preloadQueue = {}
+                preloadRunning = false
+                if #batch > 0 then
+                    pcall(function()
+                        ContentProvider:PreloadAsync(batch)
+                    end)
+                    print(string.format("[GOAT OPTIMIZER] Preloaded %d assets in %.2fs!", #batch, os.clock() - start))
+                end
+            end)
+        end
+    end
+end
+
+Workspace.DescendantAdded:Connect(function(obj)
+    addToPreload(obj)
+end)
+
+-- Preload existing assets after a short delay
+task.spawn(function()
+    task.wait(2)
+    if Settings.PreloadTextures then
+        local start = os.clock()
+        local assets = {}
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("Sound") then
+                table.insert(assets, obj)
+            end
+        end
+        if #assets > 0 then
+            pcall(function()
+                ContentProvider:PreloadAsync(assets)
+            end)
+            print(string.format("[GOAT OPTIMIZER] Preloaded %d existing assets in %.2fs!", #assets, os.clock() - start))
+        end
+    end
+end)
+
+-- ============================================================
+-- SETTINGS UI
+-- ============================================================
 local setGui = Instance.new("ScreenGui")
 setGui.Name = "GoatSettings"
 setGui.ResetOnSpawn = false
@@ -220,6 +248,9 @@ gearBtn.MouseButton1Click:Connect(function()
     menu.Visible = not menu.Visible
 end)
 
+-- ============================================================
+-- MAIN OPTIMIZATION
+-- ============================================================
 pcall(function()
     if Workspace.StreamingEnabled then Workspace.StreamingEnabled = false end
 end)
@@ -317,29 +348,33 @@ local function optimizePart(obj)
         local isPlot = isPlotPart(obj)
         local hasUI = hasInteractiveUI(obj)
 
-        -- 💡 استثناء الأزرار والواجهات من الحذف
-        if Settings.DestroyUnallowed and not isPlayer and not isPlot and not hasUI and not isAllowedPart(obj) and not isUnderAnyPlayer(obj) then
+        -- Skip everything for UI parts
+        if hasUI then
+            if Settings.RemoveEmptyFolders and obj:IsA("Folder") then
+                if #obj:GetChildren() == 0 then obj:Destroy() end
+            end
+            return
+        end
+
+        if Settings.DestroyUnallowed and not isPlayer and not isPlot and not isAllowedPart(obj) and not isUnderAnyPlayer(obj) then
             if obj:IsA("BasePart") then
                 obj:Destroy()
                 return
             end
         end
 
-        -- 💡 استثناء الأزرار والواجهات من تغيير الجرافيكس
-        if not hasUI then
-            if Settings.RemoveParticles and (obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
-               or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles")) then
-                obj.Enabled = false
-            elseif Settings.RemoveDecals and (obj:IsA("Decal") or obj:IsA("Texture")) then
-                obj.Texture = ""
-            elseif Settings.PlasticGraphics and obj:IsA("BasePart") then
-                obj.Material = Enum.Material.Plastic
-                if Settings.DisableCastShadows then
-                    obj.CastShadow = false
-                end
-                obj.Reflectance = 0
-                obj.MaterialVariant = ""
+        if Settings.RemoveParticles and (obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
+           or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles")) then
+            obj.Enabled = false
+        elseif Settings.RemoveDecals and (obj:IsA("Decal") or obj:IsA("Texture")) then
+            obj.Texture = ""
+        elseif Settings.PlasticGraphics and obj:IsA("BasePart") then
+            obj.Material = Enum.Material.Plastic
+            if Settings.DisableCastShadows then
+                obj.CastShadow = false
             end
+            obj.Reflectance = 0
+            obj.MaterialVariant = ""
         end
         
         if Settings.RemoveEmptyFolders and obj:IsA("Folder") then
